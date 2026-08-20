@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="cs" data-lang>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>Vláčky — počítání na kolejích</title>
+<title>Math Express</title>
 <style>
   :root {
     --bg: #10151c; --panel: #1b2531; --panel2: #243043; --ink: #eef3f8;
@@ -34,6 +34,10 @@
   .menu { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
   .menuCard { display: flex; gap: 26px; align-items: stretch; }
   .menuMain { min-width: 260px; }
+  .langRow { display: flex; align-items: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  .langLabel { color: var(--muted); font-size: 13px; }
+  .langRow button { padding: 6px 10px; min-height: 34px; font-size: 13px; }
+  .langRow button.sel { background: var(--accent); color: #06202e; border-color: var(--accent); }
   .scores { border-left: 1px solid var(--line); padding-left: 22px; min-width: 210px; }
   .scores h3 { margin: 0 0 10px; font-size: 15px; color: var(--muted); font-weight: 600; }
   .scores ol { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.85; }
@@ -97,76 +101,83 @@
   <span id="hudScore">0 b</span>
   <span class="msg" id="hudMsg"></span>
   <span id="hudDelivered">0 ✓</span>
-  <button id="btnPause">Pauza</button>
-  <button id="btnQuit">Ukončit a do menu</button>
+  <button id="btnPause"></button>
+  <button id="btnQuit"></button>
 </div>
 
 <div class="overlay" id="ovMenu"><div class="card menuCard">
   <div class="menuMain">
-    <h1>Vláčky</h1>
-    <p class="sub">Počítej a rozjeď vlaky do správných nádraží.</p>
+    <h1 data-i18n="menu.title"></h1>
+    <p class="sub" data-i18n="menu.sub"></p>
     <div class="menu">
-      <button class="primary" id="btnNew">Nová hra</button>
-      <button id="btnContinue">Pokračovat</button>
-      <button id="btnSettings">Nastavení</button>
-      <button id="btnHelp">Nápověda</button>
+      <button class="primary" id="btnNew" data-i18n="menu.new"></button>
+      <button id="btnContinue" data-i18n="menu.continue"></button>
+      <button id="btnSettings" data-i18n="menu.settings"></button>
+      <button id="btnHelp" data-i18n="menu.help"></button>
     </div>
+    <div class="langRow"><span class="langLabel" data-i18n="menu.language"></span>
+      <span id="menuLang"></span></div>
   </div>
   <div class="scores" id="menuScores"></div>
 </div></div>
 
 <div class="overlay" id="ovSettings"><div class="card">
-  <h2>Nastavení</h2>
-  <div class="row"><label>Presety</label>
-    <button data-preset="0">Začátečník</button>
-    <button data-preset="1">Školák</button>
-    <button data-preset="2">Expert</button></div>
-  <div class="row"><label>Operace</label><span class="ops" id="setOps"></span></div>
-  <div class="row"><label>První číslo</label>
+  <h2 data-i18n="set.title"></h2>
+  <div class="row"><label data-i18n="set.presets"></label>
+    <button data-preset="0" data-i18n="set.preset0"></button>
+    <button data-preset="1" data-i18n="set.preset1"></button>
+    <button data-preset="2" data-i18n="set.preset2"></button></div>
+  <div class="row"><label data-i18n="set.ops"></label><span class="ops" id="setOps"></span></div>
+  <div class="row"><label data-i18n="set.numA"></label>
     <span class="dual"><span class="rail"></span><span class="fill" id="fillA"></span>
       <input type="range" id="setAMin" min="0" max="999"><input type="range" id="setAMax" min="0" max="999"></span>
     <input type="number" class="num" id="numAMin" min="0" max="999">
     <span class="dash">–</span>
     <input type="number" class="num" id="numAMax" min="0" max="999"></div>
-  <div class="row"><label>Druhé číslo</label>
+  <div class="row"><label data-i18n="set.numB"></label>
     <span class="dual"><span class="rail"></span><span class="fill" id="fillB"></span>
       <input type="range" id="setBMin" min="0" max="999"><input type="range" id="setBMax" min="0" max="999"></span>
     <input type="number" class="num" id="numBMin" min="0" max="999">
     <span class="dash">–</span>
     <input type="number" class="num" id="numBMax" min="0" max="999"></div>
-  <div class="row"><label>Záporné výsledky</label><input type="checkbox" id="setNeg"></div>
-  <div class="row"><label>Méně nul v příkladech</label><input type="checkbox" id="setRareZero"></div>
-  <div class="row"><label>Čas na příklad</label>
+  <div class="row"><label data-i18n="set.negative"></label><input type="checkbox" id="setNeg"></div>
+  <div class="row"><label data-i18n="set.rareZero"></label><input type="checkbox" id="setRareZero"></div>
+  <div class="row"><label data-i18n="set.taskTime"></label>
     <input type="range" id="setTime" min="5" max="60"><span class="val" id="setTimeVal"></span></div>
-  <div class="row"><label>Zkracovat čas</label><input type="checkbox" id="setShrink"></div>
-  <div class="row"><label>— o kolik / 10 příkladů</label>
+  <div class="row"><label data-i18n="set.shrink"></label><input type="checkbox" id="setShrink"></div>
+  <div class="row"><label data-i18n="set.shrinkStep"></label>
     <input type="range" id="setShrinkStep" min="1" max="20"><span class="val" id="setShrinkStepVal"></span></div>
-  <div class="row"><label>— nejméně</label>
+  <div class="row"><label data-i18n="set.shrinkFloor"></label>
     <input type="range" id="setShrinkFloor" min="3" max="20"><span class="val" id="setShrinkFloorVal"></span></div>
-  <div class="row"><label>Rychlost vlaků</label>
+  <div class="row"><label data-i18n="set.speed"></label>
     <input type="range" id="setSpeed" min="0" max="4"><span class="val" id="setSpeedVal"></span></div>
-  <div class="row"><label>Šířka kolejiště</label>
+  <div class="row"><label data-i18n="set.carsStep"></label>
+    <input type="range" id="setCarsStep" min="1" max="30"><span class="val" id="setCarsStepVal"></span></div>
+  <div class="row"><label data-i18n="set.cols"></label>
     <input type="range" id="setCols" min="14" max="18"><span class="val" id="setColsVal"></span></div>
-  <div class="row"><label>Barvy nádraží</label><span id="setPalette"></span></div>
-  <div class="row"><label>Zvuk</label><input type="checkbox" id="setSound"></div>
+  <div class="row"><label data-i18n="set.palette"></label><span id="setPalette"></span></div>
+  <div class="row"><label data-i18n="set.sound"></label><input type="checkbox" id="setSound"></div>
   <p class="err" id="setErr"></p><p class="warn" id="setWarn"></p>
   <div class="row" style="justify-content:flex-end">
-    <button id="btnSetCancel">Zpět</button><button class="primary" id="btnSetSave">Uložit</button></div>
+    <button id="btnSetCancel" data-i18n="set.back"></button><button class="primary" id="btnSetSave" data-i18n="set.save"></button></div>
 </div></div>
 
 <div class="overlay" id="ovHelp"><div class="card">
-  <h2>Jak se hraje</h2>
+  <h2 data-i18n="help.title"></h2>
   <ul class="help">
-    <li>Vlak musí dojet do nádraží své barvy na druhé straně kolejiště.</li>
-    <li>Klikni na <b>výhybku</b> a vyřeš příklad — při správné odpovědi se přehodí.</li>
-    <li>Klikni na <b>lokomotivu</b> a vyřeš příklad — vlak se na 10 sekund zastaví.
-        Dalším kliknutím ho pustíš dřív.</li>
-    <li>Stojící vlak je překážka: jiný vlak do něj může narazit.</li>
-    <li>Výhybku pod vlakem přehodit nelze — vlak ji zakrývá.</li>
-    <li>Delší vlak blokuje koleje déle. Čím dál dojdeš, tím delší vlaky jezdí.</li>
-    <li>Chyba nestojí život, jen sekundu čekání. Život bereš za srážku a špatné nádraží.</li>
+    <li data-i18n-html="help.goal"></li>
+    <li data-i18n-html="help.switch"></li>
+    <li data-i18n-html="help.stop"></li>
+    <li data-i18n-html="help.blocked"></li>
+    <li data-i18n-html="help.obstacle"></li>
+    <li data-i18n-html="help.noentry"></li>
+    <li data-i18n-html="help.depart"></li>
+    <li data-i18n-html="help.cars"></li>
+    <li data-i18n-html="help.mistake"></li>
+    <li data-i18n-html="help.lives"></li>
   </ul>
-  <div class="row" style="justify-content:flex-end"><button class="primary" id="btnHelpBack">Zpět</button></div>
+  <div class="row" style="justify-content:flex-end">
+    <button class="primary" id="btnHelpBack" data-i18n="help.back"></button></div>
 </div></div>
 
 <div class="overlay" id="ovTask"><div class="card" id="taskCard">
@@ -177,10 +188,10 @@
 </div></div>
 
 <div class="overlay" id="ovOver"><div class="card">
-  <h2 id="overTitle">Konec hry</h2>
-  <div class="row"><span class="big" id="ovScore">0</span><span class="sub" style="margin:0">bodů</span></div>
+  <h2 id="overTitle"></h2>
+  <div class="row"><span class="big" id="ovScore">0</span><span class="sub" style="margin:0" data-i18n="over.points"></span></div>
   <div id="ovStats"></div>
-  <div class="row" style="justify-content:flex-end"><button class="primary" id="btnOverBack">Do menu</button></div>
+  <div class="row" style="justify-content:flex-end"><button class="primary" id="btnOverBack" data-i18n="over.back"></button></div>
 </div></div>
 
 <script>
@@ -215,26 +226,64 @@ var CONFIG = (function () {
    * konstantní vizuální rychlost a velikost vlaku za to stojí a hlídá ji
    * test T-REN-023 (poměr obrazovkové a logické délky je u všech hran týž).
    */
-  var U = Math.sqrt(0.5 * 0.5 + 0.25 * 0.25);
+  /*
+   * Projekce mřížky na obrazovku. Celé natočení kolejiště je dané těmito
+   * dvěma vektory: kam se posune bod o jeden sloupec a o jednu trať.
+   * Odvozuje se z nich všechno ostatní — délky úseků, rychlosti, velikost
+   * vozu i tvar oblouků — takže natočení se mění právě zde a nikde jinde.
+   *
+   *   COL: krok o sloupec (zleva doprava)
+   *   ROW: krok o trať (dolů)
+   */
+  var COL = { x: 0.5, y: 0.16 };
+  var ROW = { x: -0.30, y: 0.30 };
+
+  var U = Math.hypot(COL.x, COL.y);
+  var LINK_CURVE = 0.55;
+
+  /*
+   * Spojky se kreslí jako S-křivka, která z uzlu vychází ve směru tratě.
+   * Jejich skutečná délka je proto větší než vzdálenost koncových uzlů
+   * a logickou délkou hrany musí být délka oblouku — jinak by vlak na
+   * spojce zdánlivě zpomalil.
+   */
+  function arcLength(bx, by) {
+    var ux = COL.x / U, uy = COL.y / U;
+    var d = Math.sqrt(bx * bx + by * by) * LINK_CURVE;
+    var p1x = ux * d, p1y = uy * d, p2x = bx - ux * d, p2y = by - uy * d;
+    var len = 0, px = 0, py = 0, i, t, m, x, y;
+    for (i = 1; i <= 128; i++) {
+      t = i / 128; m = 1 - t;
+      x = 3 * m * m * t * p1x + 3 * m * t * t * p2x + t * t * t * bx;
+      y = 3 * m * m * t * p1y + 3 * m * t * t * p2y + t * t * t * by;
+      len += Math.sqrt((x - px) * (x - px) + (y - py) * (y - py));
+      px = x; py = y;
+    }
+    return len;
+  }
   var c = {
     UNIT: U,
     ROWS: 5,
     COLS_MIN: 14, COLS_MAX: 18, COLS_DEFAULT: 14,
 
-    CAR_LEN: 0.3 * U,             /* délka vozu = 0,3 vodorovného úseku */
+    CAR_LEN: 0.42 * U,            /* délka vozu jako podíl vodorovného úseku */
     CAR_WIDTH: 0.12,              /* šířka vozu jako podíl měřítka scény */
     CAR_DRAW_FRACTION: 0.92,      /* podíl rozteče, který vůz opticky zabírá */
     MAX_CARS_CAP: 7, MAX_CARS_START: 1,
     MIN_SWITCH_GAP: 1,            /* sloupců mezi výhybkami na téže trati */
     LINK_PROBABILITY: 0.85,
-    LEN_STRAIGHT: U, LEN_LINK_DOWN: 0.5, LEN_LINK_UP: 1,
+    LEN_STRAIGHT: U,
+    /* Spojka dolů je krok o sloupec a o trať, spojka nahoru o sloupec zpět. */
+    LEN_LINK_DOWN: arcLength(COL.x + ROW.x, COL.y + ROW.y),
+    LEN_LINK_UP: arcLength(COL.x - ROW.x, COL.y - ROW.y),
+    PROJ_COL: COL, PROJ_ROW: ROW,
+    LINK_CURVE: LINK_CURVE,
     GEN_ATTEMPTS: 200,
     BUILD_ITERATIONS: 60, BUILD_EXTRA_LINKS: 6,
     MIN_LINKS_PER_PAIR: 2,
     MIN_ROUTES_CORNER: 2,
 
     SPEEDS: [0.30 * U, 0.40 * U, 0.55 * U, 0.70 * U, 0.90 * U],
-    SPEED_NAMES: ['velmi pomalu', 'pomalu', 'středně', 'rychle', 'velmi rychle'],
     SPEED_DEFAULT_INDEX: 1,
 
     STOP_SECONDS: 10, STOP_BLOCK_SECONDS: 10, ERROR_BLOCK_SECONDS: 1,
@@ -252,6 +301,7 @@ var CONFIG = (function () {
 
     LIVES_START: 5, LIVES_CAP: 5,
     DELIVERIES_PER_LIFE: 3, DELIVERIES_PER_CAR: 10,
+    CARS_STEP_MIN: 1, CARS_STEP_MAX: 30,
     SCORE_PER_CAR: 10, SCORE_FAST_BONUS: 5, FAST_FRACTION: 0.5,
 
     TICK: 1 / 120, MAX_FRAME: 0.25,
@@ -265,7 +315,6 @@ var CONFIG = (function () {
     TASK_GEN_TRIES: 200,
 
     PALETTE_DEFAULT: ['#E69F00', '#56B4E9', '#009E73', '#D55E00', '#CC79A7'],
-    COLOR_NAMES: ['oranžová', 'modrá', 'zelená', 'červená', 'fialová'],
     DELTA_E_MIN: 20,
 
     STORAGE_KEY: 'vlacky.v1', SAVE_VERSION: 1, HIGHSCORE_COUNT: 8,
@@ -273,7 +322,7 @@ var CONFIG = (function () {
     FALLBACK_SEED: 20240607, MS_PER_SECOND: 1000,
 
     MSG_SECONDS: 2, SWITCH_ANIM_SECONDS: 0.2,
-    PICK_RADIUS: 24, MIN_TARGET_PX: 44,
+    PICK_RADIUS: 30, MIN_TARGET_PX: 44,
     SCENE_MARGIN: 0.5, PAD_X: 24, PAD_TOP: 56, PAD_BOTTOM: 24,
 
     ANNOUNCE_SECONDS: 2.1, PULSE_COUNT: 3, PULSE_STRENGTH: 0.85, PULSE_GROW: 0.22,
@@ -287,13 +336,34 @@ var CONFIG = (function () {
       chimney: { x: 0.34, r: 0.3, inner: 0.16 },
       dome: { x: 0.08, r: 0.22 }
     },
-    NO_ENTRY_R: 0.05,
+    NO_ENTRY_R: 0.052,
+    /* Zavřená větev má značku zákazu vždy, ale v klidu tlumenou. Sytí se,
+     * teprve když se k ní vlak blíží — jinak 42 sytých značek přehluší vlaky. */
+    APPROACH_UNITS: 1.3,
+    SWITCH_GAP_UNITS: 0.085, NODE_DOT_R: 0.042, ARROW_R: 0.055,
+    BLADE_UNITS: 0.17,
+    /* Značka zákazu se po zavřené větvi posouvá tak daleko, aby měla od
+       otevřené větve odstup NO_ENTRY_CLEAR. U samotného uzlu jsou obě větve
+       tečné ke stejnému směru, takže tam leží skoro na sobě. */
+    /*
+     * Odstup značky od osy otevřené větve. Rozhoduje poloměr značky plus
+     * rozvor kolejí: disk značky nesmí zasáhnout kolejnice sousední větve.
+     * Okraje jejího štěrkového lože se dotknout smí — je tmavý a nenápadný,
+     * a přísnější práh odsouval značku zbytečně daleko od své výhybky.
+     */
+    NO_ENTRY_CLEAR: 0.095, MARK_STEPS: 64, MARK_MAX_FRACTION: 0.85, MARK_MARGIN: 1.04,
+    BALLAST_W: 0.085, GAUGE: 0.03, SLEEPER_PX: 13, SLEEPER_OVERHANG: 1.8,
+    COL_BALLAST: '#39414c', COL_RAIL: '#93a1b1', COL_SLEEPER: '#5b6675',
+    COL_MARK: '#dce7f2', COL_MARK_DIM: '#6b7787',
+    NO_ENTRY_CALM: '#5f302b', NO_ENTRY_HOT: '#d13b2a',
+    BAR_CALM: '#9d8f8c', BAR_HOT: '#ffffff',
+    STATION: { plat: { w: 0.52, h: 0.17 }, house: { w: 0.36, h: 0.21, off: 0.2 } },
+    PLATFORM_TINT: 0.45,
+    SHADOW_BLUR: 7, SHADOW_Y: 4,
     EPS: 1e-9
   };
   c.PALETTE_DEFAULT = Object.freeze(c.PALETTE_DEFAULT);
   c.SPEEDS = Object.freeze(c.SPEEDS);
-  c.SPEED_NAMES = Object.freeze(c.SPEED_NAMES);
-  c.COLOR_NAMES = Object.freeze(c.COLOR_NAMES);
   return Object.freeze(c);
 })();
 
@@ -338,6 +408,299 @@ var Bus = (function () {
   };
 })();
 
+/* -------------------------------------------------------------------- I18N */
+/*
+ * Texty rozhraní. Jediné místo, kde smí být uživatelsky viditelný řetězec.
+ *
+ * Věcné údaje (počty sekund, životů, bodů) se do textů dosazují z CONFIG
+ * přes zástupné značky {…}. Nedá se tak stát, že text bude tvrdit něco
+ * jiného, než hra dělá — hlídá to test T-I18N-004.
+ */
+var I18N = (function () {
+  var LANGS = ['cs', 'en', 'pt'];
+  var NAMES = { cs: 'Čeština', en: 'English', pt: 'Português' };
+  var current = 'cs';
+
+  var DICT = {
+    cs: {
+      "doc.title": "Matematický expres — počítání na kolejích",
+      "menu.title": "Matematický expres",
+      "menu.sub": "Počítej a doveď každý vlak do jeho nádraží.",
+      "menu.new": "Nová hra", "menu.continue": "Pokračovat",
+      "menu.settings": "Nastavení", "menu.help": "Nápověda",
+      "menu.scores": "Nejlepší výsledky", "menu.language": "Jazyk",
+
+      "set.title": "Nastavení", "set.presets": "Obtížnost",
+      "set.preset0": "Začátečník", "set.preset1": "Školák", "set.preset2": "Expert",
+      "set.ops": "Operace", "set.numA": "První číslo", "set.numB": "Druhé číslo",
+      "set.negative": "Záporné výsledky", "set.rareZero": "Méně nul v příkladech",
+      "set.taskTime": "Čas na příklad", "set.shrink": "Zkracovat čas",
+      "set.shrinkStep": "— o kolik za {n} příkladů", "set.shrinkFloor": "— nejméně",
+      "set.speed": "Rychlost vlaků", "set.carsStep": "Delší vlaky po",
+      "set.cols": "Šířka kolejiště", "set.palette": "Barvy nádraží",
+      "set.sound": "Zvuk", "set.back": "Zpět", "set.save": "Uložit",
+
+      "speed.0": "velmi pomalu", "speed.1": "pomalu", "speed.2": "středně",
+      "speed.3": "rychle", "speed.4": "velmi rychle",
+
+      "err.no-operations": "Vyber alespoň jednu operaci.",
+      "err.range-inverted": "Rozsah má prohozené meze.",
+      "err.no-valid-task": "V tomto rozsahu nelze vytvořit žádný příklad. Uprav rozsahy nebo operace.",
+      "err.cols-out-of-range": "Šířka kolejiště je mimo rozsah.",
+      "err.task-time-out-of-range": "Čas na příklad je mimo rozsah.",
+      "err.cars-step-out-of-range": "Prodlužování vlaků je mimo rozsah.",
+      "err.palette-size": "Barev musí být pět.",
+      "err.not-a-number": "Některá hodnota chybí nebo není číslo.",
+      "warn.palette": "Některé barvy nádraží jsou si příliš podobné — hráč je nemusí rozlišit.",
+
+      "help.title": "Jak se hraje",
+      "help.goal": "Každý vlak musí dojet do nádraží své barvy na druhé straně kolejiště.",
+      "help.switch": "Klikni na <b>výhybku</b> a vyřeš příklad. Když odpovíš správně, výhybka se přehodí.",
+      "help.stop": "Klikni na <b>lokomotivu</b> a vyřeš příklad. Vlak se zastaví na {stopCount} a dalším kliknutím ho rozjedeš dřív.",
+      "help.blocked": "Vlak stojící na výhybce ji zakrývá, takže ji nepřehodíš.",
+      "help.obstacle": "Stojící vlak je překážka — jiný vlak do něj může narazit.",
+      "help.noentry": "Značka zákazu označuje zavřenou větev výhybky. Vlak, který do ní vjede, <b>vykolejí</b>.",
+      "help.depart": "Než vlak vyjede, jeho nádraží třikrát zabliká.",
+      "help.cars": "Delší vlak zabírá koleje déle. Čím víc vlaků doručíš, tím delší soupravy jezdí.",
+      "help.mistake": "Špatná odpověď tě stojí jen {blockCount} čekání. Vzdát se nestojí nic.",
+      "help.lives": "Začínáš s {lives} životy. Život ztrácíš při srážce, při vykolejení a při doručení do špatného nádraží. Každé {perLife} doručené vlaky v řadě ti jeden život vrátí.",
+      "help.back": "Zpět",
+
+      "task.ok": "OK", "task.giveup": "Vzdát se",
+      "hud.pause": "Pauza", "hud.resume": "Pokračovat", "hud.quit": "Ukončit a do menu",
+
+      "msg.correct": "Správně", "msg.wrong": "Špatně (správně: {n})", "msg.left": "Beze změny",
+      "msg.train-over-node": "Výhybku zakrývá vlak.",
+      "msg.input-blocked": "Ještě moment…",
+      "msg.stop-blocked": "Tenhle vlak teď zastavit nejde.",
+      "msg.object-cooldown": "Ještě chvíli počkej.",
+
+      "over.title": "Konec hry", "over.record": "Nový rekord!", "over.place": "Konec hry — {ord} místo",
+      "over.points": "bodů", "over.delivered": "Doručeno vlaků",
+      "over.tasks": "Příkladů celkem", "over.rate": "Úspěšnost",
+      "over.wrong": "Špatná odpověď", "over.timeout": "Došel čas", "over.forfeit": "Vzdané příklady",
+      "over.opHead": "Operace", "over.opCount": "Příkladů",
+      "over.mistakes": "Nejčastější chyby", "over.back": "Do menu",
+
+      "op.+": "sčítání", "op.-": "odčítání", "op.*": "násobení", "op./": "dělení",
+      "unit.points": "b", "unit.seconds": "s",
+      "unit.trains": ["vlaku", "vlacích", "vlacích"],
+      "unit.secondsCount": ["sekundu", "sekundy", "sekund"]
+    },
+
+    en: {
+      "doc.title": "Math Express — maths on rails",
+      "menu.title": "Math Express",
+      "menu.sub": "Solve the sums and take every train to its own station.",
+      "menu.new": "New game", "menu.continue": "Continue",
+      "menu.settings": "Settings", "menu.help": "How to play",
+      "menu.scores": "Best scores", "menu.language": "Language",
+
+      "set.title": "Settings", "set.presets": "Difficulty",
+      "set.preset0": "Beginner", "set.preset1": "Pupil", "set.preset2": "Expert",
+      "set.ops": "Operations", "set.numA": "First number", "set.numB": "Second number",
+      "set.negative": "Negative results", "set.rareZero": "Fewer zeros in sums",
+      "set.taskTime": "Time per sum", "set.shrink": "Shorten the time",
+      "set.shrinkStep": "— by how much per {n} sums", "set.shrinkFloor": "— never below",
+      "set.speed": "Train speed", "set.carsStep": "Longer trains every",
+      "set.cols": "Layout width", "set.palette": "Station colours",
+      "set.sound": "Sound", "set.back": "Back", "set.save": "Save",
+
+      "speed.0": "very slow", "speed.1": "slow", "speed.2": "medium",
+      "speed.3": "fast", "speed.4": "very fast",
+
+      "err.no-operations": "Pick at least one operation.",
+      "err.range-inverted": "The range has its ends swapped.",
+      "err.no-valid-task": "No sum can be made in this range. Adjust the ranges or the operations.",
+      "err.cols-out-of-range": "Layout width is out of range.",
+      "err.task-time-out-of-range": "Time per sum is out of range.",
+      "err.cars-step-out-of-range": "Train lengthening is out of range.",
+      "err.palette-size": "There must be five colours.",
+      "err.not-a-number": "A value is missing or is not a number.",
+      "warn.palette": "Some station colours are too similar — a player may not tell them apart.",
+
+      "help.title": "How to play",
+      "help.goal": "Each train has to reach the station of its own colour on the other side.",
+      "help.switch": "Click a <b>switch</b> and solve the sum. Answer correctly and the switch changes.",
+      "help.stop": "Click a <b>locomotive</b> and solve the sum. The train stops for {stopCount}, and clicking again starts it sooner.",
+      "help.blocked": "A train standing on a switch covers it, so you cannot change it.",
+      "help.obstacle": "A standing train is an obstacle — another train can run into it.",
+      "help.noentry": "The no-entry sign marks the closed branch of a switch. A train entering it will <b>derail</b>.",
+      "help.depart": "Before a train sets off, its station flashes three times.",
+      "help.cars": "A longer train occupies the track for longer. The more trains you deliver, the longer they get.",
+      "help.mistake": "A wrong answer costs you only {blockCount} of waiting. Giving up costs nothing.",
+      "help.lives": "You start with {lives} lives. A crash, a derailment or a delivery to the wrong station costs you one. Every {perLife} deliveries in a row give one back.",
+      "help.back": "Back",
+
+      "task.ok": "OK", "task.giveup": "Give up",
+      "hud.pause": "Pause", "hud.resume": "Resume", "hud.quit": "Quit to menu",
+
+      "msg.correct": "Correct", "msg.wrong": "Wrong (answer: {n})", "msg.left": "Left unchanged",
+      "msg.train-over-node": "A train is covering the switch.",
+      "msg.input-blocked": "Just a moment…",
+      "msg.stop-blocked": "This train cannot be stopped right now.",
+      "msg.object-cooldown": "Wait a little longer.",
+
+      "over.title": "Game over", "over.record": "New record!", "over.place": "Game over — {ord} place",
+      "over.points": "points", "over.delivered": "Trains delivered",
+      "over.tasks": "Sums in total", "over.rate": "Success rate",
+      "over.wrong": "Wrong answer", "over.timeout": "Ran out of time", "over.forfeit": "Given up",
+      "over.opHead": "Operation", "over.opCount": "Sums",
+      "over.mistakes": "Most frequent mistakes", "over.back": "To menu",
+
+      "op.+": "addition", "op.-": "subtraction", "op.*": "multiplication", "op./": "division",
+      "unit.points": "pts", "unit.seconds": "s",
+      "unit.trains": ["train", "trains"],
+      "unit.secondsCount": ["second", "seconds"]
+    },
+
+    pt: {
+      "doc.title": "Math Express — matemática nos carris",
+      "menu.title": "Math Express",
+      "menu.sub": "Faz as contas e leva cada comboio à sua estação.",
+      "menu.new": "Novo jogo", "menu.continue": "Continuar",
+      "menu.settings": "Definições", "menu.help": "Como se joga",
+      "menu.scores": "Melhores resultados", "menu.language": "Idioma",
+
+      "set.title": "Definições", "set.presets": "Dificuldade",
+      "set.preset0": "Principiante", "set.preset1": "Aluno", "set.preset2": "Perito",
+      "set.ops": "Operações", "set.numA": "Primeiro número", "set.numB": "Segundo número",
+      "set.negative": "Resultados negativos", "set.rareZero": "Menos zeros nas contas",
+      "set.taskTime": "Tempo por conta", "set.shrink": "Encurtar o tempo",
+      "set.shrinkStep": "— quanto por cada {n} contas", "set.shrinkFloor": "— nunca abaixo de",
+      "set.speed": "Velocidade dos comboios", "set.carsStep": "Comboios mais longos a cada",
+      "set.cols": "Largura da linha", "set.palette": "Cores das estações",
+      "set.sound": "Som", "set.back": "Voltar", "set.save": "Guardar",
+
+      "speed.0": "muito devagar", "speed.1": "devagar", "speed.2": "médio",
+      "speed.3": "rápido", "speed.4": "muito rápido",
+
+      "err.no-operations": "Escolhe pelo menos uma operação.",
+      "err.range-inverted": "O intervalo tem os limites trocados.",
+      "err.no-valid-task": "Não é possível criar nenhuma conta neste intervalo. Ajusta os intervalos ou as operações.",
+      "err.cols-out-of-range": "A largura da linha está fora do intervalo.",
+      "err.task-time-out-of-range": "O tempo por conta está fora do intervalo.",
+      "err.cars-step-out-of-range": "O alongamento dos comboios está fora do intervalo.",
+      "err.palette-size": "Têm de ser cinco cores.",
+      "err.not-a-number": "Falta um valor ou não é um número.",
+      "warn.palette": "Algumas cores das estações são demasiado parecidas — o jogador pode não as distinguir.",
+
+      "help.title": "Como se joga",
+      "help.goal": "Cada comboio tem de chegar à estação da sua cor, do outro lado da linha.",
+      "help.switch": "Clica numa <b>agulha</b> e resolve a conta. Se acertares, a agulha muda.",
+      "help.stop": "Clica numa <b>locomotiva</b> e resolve a conta. O comboio para durante {stopCount} e, clicando outra vez, arranca mais cedo.",
+      "help.blocked": "Um comboio parado sobre a agulha tapa-a, por isso não a podes mudar.",
+      "help.obstacle": "Um comboio parado é um obstáculo — outro comboio pode embater nele.",
+      "help.noentry": "O sinal de sentido proibido marca o ramo fechado da agulha. O comboio que lá entrar <b>descarrila</b>.",
+      "help.depart": "Antes de um comboio partir, a sua estação pisca três vezes.",
+      "help.cars": "Um comboio mais longo ocupa a via durante mais tempo. Quantos mais entregares, mais longos ficam.",
+      "help.mistake": "Uma resposta errada custa-te apenas {blockCount} de espera. Desistir não custa nada.",
+      "help.lives": "Começas com {lives} vidas. Perdes uma vida num choque, num descarrilamento ou ao entregar na estação errada. Cada {perLife} entregas seguidas devolvem-te uma.",
+      "help.back": "Voltar",
+
+      "task.ok": "OK", "task.giveup": "Desistir",
+      "hud.pause": "Pausa", "hud.resume": "Continuar", "hud.quit": "Sair para o menu",
+
+      "msg.correct": "Certo", "msg.wrong": "Errado (certo: {n})", "msg.left": "Deixado como está",
+      "msg.train-over-node": "Um comboio está a tapar a agulha.",
+      "msg.input-blocked": "Só um momento…",
+      "msg.stop-blocked": "Este comboio não pode parar agora.",
+      "msg.object-cooldown": "Espera mais um pouco.",
+
+      "over.title": "Fim do jogo", "over.record": "Novo recorde!", "over.place": "Fim do jogo — {ord} lugar",
+      "over.points": "pontos", "over.delivered": "Comboios entregues",
+      "over.tasks": "Total de contas", "over.rate": "Taxa de acerto",
+      "over.wrong": "Resposta errada", "over.timeout": "Acabou o tempo", "over.forfeit": "Desistências",
+      "over.opHead": "Operação", "over.opCount": "Contas",
+      "over.mistakes": "Erros mais frequentes", "over.back": "Para o menu",
+
+      "op.+": "adição", "op.-": "subtração", "op.*": "multiplicação", "op./": "divisão",
+      "unit.points": "pts", "unit.seconds": "s",
+      "unit.trains": ["comboio", "comboios"],
+      "unit.secondsCount": ["segundo", "segundos"]
+    }
+  };
+
+  /* Věcné údaje se do textů dosazují z CONFIG, ne opisují ručně. */
+  function facts() {
+    return {
+      stop: CONFIG.STOP_SECONDS,
+      stopCount: count('unit.secondsCount', CONFIG.STOP_SECONDS),
+      block: CONFIG.ERROR_BLOCK_SECONDS,
+      blockCount: count('unit.secondsCount', CONFIG.ERROR_BLOCK_SECONDS),
+      lives: CONFIG.LIVES_START,
+      perLife: CONFIG.DELIVERIES_PER_LIFE,
+      n: CONFIG.SHRINK_EVERY
+    };
+  }
+
+  /** Řadová číslovka: 3. — 3rd — 3.º */
+  function ordinal(n) {
+    if (current === 'en') {
+      var rest = n % 100;
+      if (rest >= 11 && rest <= 13) return n + 'th';
+      return n + (['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+    }
+    return current === 'pt' ? n + '.º' : n + '.';
+  }
+
+  /** Jazyk podle systému; co neznáme, dostane angličtinu. */
+  function detect() {
+    var tags = [];
+    try {
+      if (typeof navigator !== 'undefined') {
+        tags = (navigator.languages || [navigator.language || '']).slice();
+      }
+    } catch (e) { tags = []; }
+    for (var i = 0; i < tags.length; i++) {
+      var primary = String(tags[i] || '').toLowerCase().split(/[-_]/)[0];
+      if (LANGS.indexOf(primary) >= 0) return primary;
+    }
+    return 'en';
+  }
+
+  function resolve(lang) {
+    return LANGS.indexOf(lang) >= 0 ? lang : detect();
+  }
+
+  function set(lang) { current = resolve(lang); return current; }
+  function get() { return current; }
+
+  /** Český tvar se liší pro 1, pro 2–4 a pro 5 a víc. */
+  function plural(n, forms) {
+    if (forms.length < 3) return forms[n === 1 ? 0 : 1];
+    if (n === 1) return forms[0];
+    if (n >= 2 && n <= 4) return forms[1];
+    return forms[2];
+  }
+
+  function t(key, params) {
+    var raw = DICT[current][key];
+    if (raw === undefined) raw = DICT.en[key];
+    if (raw === undefined) return key;
+    var all = facts(), k;
+    if (params) for (k in params) all[k] = params[k];
+    if (all.ord === undefined && params && params.n !== undefined) all.ord = ordinal(params.n);
+    return String(raw).replace(/\{(\w+)\}/g, function (m, name) {
+      return all[name] === undefined ? m : all[name];
+    });
+  }
+
+  /** Počet s tvarem podstatného jména, např. „po 3 vlacích". */
+  function count(key, n) {
+    var forms = DICT[current][key] || DICT.en[key];
+    return n + ' ' + plural(n, forms);
+  }
+
+  return {
+    t: t, count: count, ordinal: ordinal, set: set, get: get, detect: detect, resolve: resolve,
+    plural: plural, langs: function () { return LANGS.slice(); },
+    name: function (l) { return NAMES[l]; },
+    keys: function (l) { return Object.keys(DICT[l]); },
+    raw: function (l, k) { return DICT[l][k]; }
+  };
+})();
+
 /* ---------------------------------------------------------------- Settings */
 var Settings = (function () {
   function defaults() {
@@ -351,35 +714,71 @@ var Settings = (function () {
       shrinkStep: CONFIG.SHRINK_STEP_DEFAULT,
       shrinkFloor: CONFIG.SHRINK_FLOOR_DEFAULT,
       speedIndex: CONFIG.SPEED_DEFAULT_INDEX,
+      carsPerStep: CONFIG.DELIVERIES_PER_CAR,
       cols: CONFIG.COLS_DEFAULT,
       palette: CONFIG.PALETTE_DEFAULT.slice(),
-      sound: true
+      sound: true,
+      lang: 'auto'
     };
   }
 
   var PRESETS = [
-    { name: 'Začátečník', ops: ['+'], aMin: 0, aMax: 5, bMin: 0, bMax: 5, taskTime: 20, speedIndex: 0 },
-    { name: 'Školák', ops: ['+', '-'], aMin: 0, aMax: 20, bMin: 0, bMax: 10, taskTime: 15, speedIndex: 1 },
-    { name: 'Expert', ops: ['+', '-', '*', '/'], aMin: 0, aMax: 100, bMin: 1, bMax: 10, taskTime: 12, speedIndex: 2 }
+    { ops: ['+'], aMin: 0, aMax: 5, bMin: 0, bMax: 5, taskTime: 20, speedIndex: 0, carsPerStep: 15 },
+    { ops: ['+', '-'], aMin: 0, aMax: 20, bMin: 0, bMax: 10, taskTime: 15, speedIndex: 1 },
+    { ops: ['+', '-', '*', '/'], aMin: 0, aMax: 100, bMin: 1, bMax: 10, taskTime: 12, speedIndex: 2, carsPerStep: 6 }
   ];
 
   function preset(i) {
     var s = defaults(), p = PRESETS[i];
-    for (var k in p) if (k !== 'name') s[k] = Array.isArray(p[k]) ? p[k].slice() : p[k];
+    for (var k in p) s[k] = Array.isArray(p[k]) ? p[k].slice() : p[k];
     return s;
   }
 
   function clone(s) { return JSON.parse(JSON.stringify(s)); }
 
+  /**
+   * Doplní chybějící položky z výchozích hodnot a zahodí neznámé.
+   *
+   * Záznam uložený starší verzí nemá položky, které přibyly později.
+   * Bez tohoto doplnění se do hry dostala nedefinovaná hodnota — validace
+   * ji nezachytila, protože `undefined < min` je nepravda.
+   */
+  function merge(saved) {
+    var base = defaults();
+    if (!saved || typeof saved !== 'object') return base;
+    for (var k in base) {
+      if (!Object.prototype.hasOwnProperty.call(saved, k)) continue;
+      var v = saved[k], d = base[k];
+      if (Array.isArray(d)) { if (Array.isArray(v)) base[k] = v.slice(); }
+      else if (typeof d === typeof v) base[k] = v;
+    }
+    return base;
+  }
+
   /** Čistá validace — REQ-SET-016…018. Vrací pole kódů chyb. */
+  var NUMERIC = ['aMin', 'aMax', 'bMin', 'bMax', 'taskTime', 'shrinkStep',
+    'shrinkFloor', 'speedIndex', 'cols', 'carsPerStep'];
+
   function validate(s) {
     var e = [];
     if (!s || !Array.isArray(s.ops) || s.ops.length === 0) e.push('no-operations');
     if (!s) return e;
+    /* Chybějící číslo musí být chyba: porovnání s mezemi ho propustí,
+       protože `undefined < min` je nepravda. */
+    for (var i = 0; i < NUMERIC.length; i++) {
+      if (typeof s[NUMERIC[i]] !== 'number' || !isFinite(s[NUMERIC[i]])) {
+        e.push('not-a-number:' + NUMERIC[i]);
+      }
+    }
+    if (e.length && e[e.length - 1].indexOf('not-a-number') === 0) return e;
     if (s.aMin > s.aMax || s.bMin > s.bMax) e.push('range-inverted');
     if (s.cols < CONFIG.COLS_MIN || s.cols > CONFIG.COLS_MAX) e.push('cols-out-of-range');
     if (s.taskTime < CONFIG.TASK_TIME_MIN || s.taskTime > CONFIG.TASK_TIME_MAX) e.push('task-time-out-of-range');
+    if (s.carsPerStep < CONFIG.CARS_STEP_MIN || s.carsPerStep > CONFIG.CARS_STEP_MAX) {
+      e.push('cars-step-out-of-range');
+    }
     if (!Array.isArray(s.palette) || s.palette.length !== CONFIG.ROWS) e.push('palette-size');
+    if (s.lang !== 'auto' && I18N.langs().indexOf(s.lang) < 0) e.push('lang-unknown');
     if (e.indexOf('no-operations') < 0 && e.indexOf('range-inverted') < 0) {
       if (MathTasks.usableOps(s).length === 0) e.push('no-valid-task');
     }
@@ -421,7 +820,7 @@ var Settings = (function () {
   }
 
   return {
-    defaults: defaults, clone: clone, validate: validate, warnings: warnings,
+    defaults: defaults, clone: clone, merge: merge, validate: validate, warnings: warnings,
     deltaE: deltaE, preset: preset, PRESETS: PRESETS
   };
 })();
@@ -1096,7 +1495,7 @@ var Sim = (function () {
       var pts = CONFIG.SCORE_PER_CAR * (1 + t.cars);
       state.score += pts;
       state.maxCars = Math.min(CONFIG.MAX_CARS_CAP,
-        CONFIG.MAX_CARS_START + Math.floor(state.delivered / CONFIG.DELIVERIES_PER_CAR));
+        CONFIG.MAX_CARS_START + Math.floor(state.delivered / state.settings.carsPerStep));
       if (state.deliveredStreak % CONFIG.DELIVERIES_PER_LIFE === 0 && state.lives < CONFIG.LIVES_CAP) {
         state.lives++;
         Bus.emit('lives:changed', { lives: state.lives, delta: 1 });
@@ -1606,8 +2005,9 @@ var Sim = (function () {
 
   function restore(obj) {
     if (!obj || obj.version !== CONFIG.SAVE_VERSION) return null;
-    if (Settings.validate(obj.settings).length) return null;
-    var state = create(obj.settings, obj.seed);
+    var settings = Settings.merge(obj.settings);
+    if (Settings.validate(settings).length) return null;
+    var state = create(settings, obj.seed);
     var i, k = 0;
     for (i = 0; i < state.net.nodes.length; i++) {
       var n = state.net.nodes[i];
@@ -1686,8 +2086,9 @@ var Renderer2D = (function () {
   var scale = 1, ox = 0, oy = 0, palette = CONFIG.PALETTE_DEFAULT.slice();
   var lastState = null;
 
-  function rawX(r, c) { return (c - r) * 0.5; }
-  function rawY(r, c) { return (c + r) * 0.25; }
+  var COL = CONFIG.PROJ_COL, ROW = CONFIG.PROJ_ROW;
+  function rawX(r, c) { return c * COL.x + r * ROW.x; }
+  function rawY(r, c) { return c * COL.y + r * ROW.y; }
 
   function gridToScreen(r, c) { return { x: ox + rawX(r, c) * scale, y: oy + rawY(r, c) * scale }; }
 
@@ -1701,6 +2102,7 @@ var Renderer2D = (function () {
     if (key === layoutKey) return;
     layoutKey = key;
     puffs = [];
+    markCache = {};
     layout(net);
   }
 
@@ -1727,10 +2129,94 @@ var Renderer2D = (function () {
 
   function nodePos(net, id) { var n = net.nodes[id]; return gridToScreen(n.r, n.c); }
 
+  /* Jednotkový směr tratě na obrazovce; spojky z něj vycházejí i do něj ústí. */
+  function railDir() {
+    var o = gridToScreen(0, 0), q = gridToScreen(0, 1);
+    var dx = q.x - o.x, dy = q.y - o.y, L = Math.hypot(dx, dy) || 1;
+    return { x: dx / L, y: dy / L };
+  }
+
+  /*
+   * Tabulka pro převod podílu dráhy na parametr křivky. Bez ní by vlak
+   * uprostřed oblouku zrychlil: parametr Bézierovy křivky neroste stejně
+   * rychle jako ujetá dráha. Tvary spojek jsou jen dva, tabulka se tedy
+   * spočítá jednou a platí pro celou scénu.
+   */
+  var arcTables = {};
+  function arcTable(kind) {
+    if (arcTables[kind]) return arcTables[kind];
+    var bx = kind === 'down' ? COL.x + ROW.x : COL.x - ROW.x;
+    var by = kind === 'down' ? COL.y + ROW.y : COL.y - ROW.y;
+    var ux = COL.x / CONFIG.LEN_STRAIGHT, uy = COL.y / CONFIG.LEN_STRAIGHT;
+    var d = Math.hypot(bx, by) * CONFIG.LINK_CURVE;
+    var p1x = ux * d, p1y = uy * d, p2x = bx - ux * d, p2y = by - uy * d;
+    var N = 192, cum = [0], px = 0, py = 0, i, t, m, x, y;
+    for (i = 1; i <= N; i++) {
+      t = i / N; m = 1 - t;
+      x = 3 * m * m * t * p1x + 3 * m * t * t * p2x + t * t * t * bx;
+      y = 3 * m * m * t * p1y + 3 * m * t * t * p2y + t * t * t * by;
+      cum.push(cum[i - 1] + Math.hypot(x - px, y - py));
+      px = x; py = y;
+    }
+    arcTables[kind] = { cum: cum, total: cum[N], n: N };
+    return arcTables[kind];
+  }
+
+  /** Podíl ujeté dráhy na parametr křivky. */
+  function curveT(kind, s) {
+    var tb = arcTable(kind), target = Math.max(0, Math.min(1, s)) * tb.total;
+    for (var i = 1; i <= tb.n; i++) {
+      if (tb.cum[i] >= target) {
+        var span = tb.cum[i] - tb.cum[i - 1] || 1;
+        return (i - 1 + (target - tb.cum[i - 1]) / span) / tb.n;
+      }
+    }
+    return 1;
+  }
+
+  function linkKind(net, e) { return net.nodes[e.b].r > net.nodes[e.a].r ? 'down' : 'up'; }
+
   function edgePoint(net, edgeId, t) {
     var e = net.edges[edgeId], a = nodePos(net, e.a), b = nodePos(net, e.b);
-    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t,
-             ang: Math.atan2(b.y - a.y, b.x - a.x) };
+    if (e.kind !== 'link') {
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t,
+               ang: Math.atan2(b.y - a.y, b.x - a.x) };
+    }
+    var u = railDir(), d = Math.hypot(b.x - a.x, b.y - a.y) * CONFIG.LINK_CURVE;
+    var p1x = a.x + u.x * d, p1y = a.y + u.y * d;
+    var p2x = b.x - u.x * d, p2y = b.y - u.y * d;
+    var bt = curveT(linkKind(net, e), t), m = 1 - bt;
+    var x = m * m * m * a.x + 3 * m * m * bt * p1x + 3 * m * bt * bt * p2x + bt * bt * bt * b.x;
+    var y = m * m * m * a.y + 3 * m * m * bt * p1y + 3 * m * bt * bt * p2y + bt * bt * bt * b.y;
+    var dx = 3 * m * m * (p1x - a.x) + 6 * m * bt * (p2x - p1x) + 3 * bt * bt * (b.x - p2x);
+    var dy = 3 * m * m * (p1y - a.y) + 6 * m * bt * (p2y - p1y) + 3 * bt * bt * (b.y - p2y);
+    return { x: x, y: y, ang: Math.atan2(dy, dx) };
+  }
+
+  /** Body podél hrany mezi podíly t0 a t1. */
+  function edgePath(net, edgeId, t0, t1) {
+    var steps = net.edges[edgeId].kind === 'link' ? 16 : 6, out = [], i;
+    for (i = 0; i <= steps; i++) out.push(edgePoint(net, edgeId, t0 + (t1 - t0) * i / steps));
+    return out;
+  }
+
+  function polyOffset(pts, off) {
+    var out = [], i, p, a, b, dx, dy, L;
+    for (i = 0; i < pts.length; i++) {
+      p = pts[i]; a = pts[Math.max(0, i - 1)]; b = pts[Math.min(pts.length - 1, i + 1)];
+      dx = b.x - a.x; dy = b.y - a.y; L = Math.hypot(dx, dy) || 1;
+      out.push({ x: p.x - dy / L * off, y: p.y + dx / L * off });
+    }
+    return out;
+  }
+
+  function strokePoly(pts, color, w, cap) {
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineJoin = 'round';
+    ctx.lineCap = cap || 'round';
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.stroke(); ctx.restore();
   }
 
   /** Kolik obrazovkových bodů připadá na jednotku délky dané hrany. */
@@ -1783,46 +2269,108 @@ var Renderer2D = (function () {
     if (lastState) ensureLayout(lastState.net);
   }
 
-  function line(a, b, color, width, dash) {
-    ctx.save();
-    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
-    if (dash) ctx.setLineDash(dash);
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    ctx.restore();
+  /**
+   * Konce hrany. Zavřená větev výhybky se nekreslí až k uzlu — mezera
+   * v koleji je hlavní nositel informace o tom, kudy se právě nejede.
+   */
+  function edgeSpan(net, e) {
+    var a = net.nodes[e.a], b = net.nodes[e.b];
+    var gap = Math.min(0.32, CONFIG.SWITCH_GAP_UNITS / e.len);
+    var t0 = 0, t1 = 1;
+    if (a.branchSide === 'R' && a.edgesR.length === 2 && a.edgesR[a.active] !== e.id) t0 = gap;
+    if (b.branchSide === 'L' && b.edgesL.length === 2 && b.edgesL[b.active] !== e.id) t1 = 1 - gap;
+    return [t0, t1];
   }
 
   function drawTrack(net) {
-    var gauge = Math.max(2, scale * 0.035);
-    for (var i = 0; i < net.edges.length; i++) {
-      var e = net.edges[i], a = nodePos(net, e.a), b = nodePos(net, e.b);
-      var dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
-      var nx = -dy / len * gauge, ny = dx / len * gauge;
-      ctx.strokeStyle = '#4a5b70'; ctx.lineWidth = Math.max(1, scale * 0.012);
+    var gauge = Math.max(2, scale * CONFIG.GAUGE);
+    var ballast = Math.max(5, scale * CONFIG.BALLAST_W);
+    var railW = Math.max(1.2, scale * 0.016);
+    var i, e, span, paths = [];
+
+    /*
+     * Nejdřív celé štěrkové lože, teprve pak koleje. Kreslit obojí po
+     * hranách nešlo: lože zatáčky by přejelo kolejnice sousedního úseku.
+     */
+    for (i = 0; i < net.edges.length; i++) {
+      e = net.edges[i]; span = edgeSpan(net, e);
+      paths.push(edgePath(net, e.id, span[0], span[1]));
+      strokePoly(paths[i], CONFIG.COL_BALLAST, ballast * 2, 'butt');
+    }
+
+    for (i = 0; i < net.edges.length; i++) {
+      var pts = paths[i];
+
+      /* Pražce po pevné vzdálenosti na obrazovce, ne po podílu hrany. */
+      ctx.save();
+      ctx.strokeStyle = CONFIG.COL_SLEEPER; ctx.lineWidth = Math.max(1, scale * 0.009);
       ctx.beginPath();
-      var steps = Math.max(2, Math.round(len / 12));
-      for (var s = 0; s <= steps; s++) {
-        var px = a.x + dx * s / steps, py = a.y + dy * s / steps;
-        ctx.moveTo(px - nx * 1.5, py - ny * 1.5); ctx.lineTo(px + nx * 1.5, py + ny * 1.5);
+      var carry = 0, j, p, q, dx, dy, L, nx, ny, steps, k, f, sx, sy;
+      for (j = 1; j < pts.length; j++) {
+        p = pts[j - 1]; q = pts[j];
+        dx = q.x - p.x; dy = q.y - p.y; L = Math.hypot(dx, dy);
+        if (!L) continue;
+        nx = -dy / L * gauge * CONFIG.SLEEPER_OVERHANG;
+        ny = dx / L * gauge * CONFIG.SLEEPER_OVERHANG;
+        steps = Math.floor((L + carry) / CONFIG.SLEEPER_PX);
+        for (k = 0; k < steps; k++) {
+          f = (CONFIG.SLEEPER_PX * (k + 1) - carry) / L;
+          sx = p.x + dx * f; sy = p.y + dy * f;
+          ctx.moveTo(sx - nx, sy - ny); ctx.lineTo(sx + nx, sy + ny);
+        }
+        carry = (L + carry) - steps * CONFIG.SLEEPER_PX;
       }
-      ctx.stroke();
-      line({ x: a.x + nx, y: a.y + ny }, { x: b.x + nx, y: b.y + ny }, '#8fa3ba', Math.max(1, scale * 0.018));
-      line({ x: a.x - nx, y: a.y - ny }, { x: b.x - nx, y: b.y - ny }, '#8fa3ba', Math.max(1, scale * 0.018));
+      ctx.stroke(); ctx.restore();
+
+      strokePoly(polyOffset(pts, gauge), CONFIG.COL_RAIL, railW, 'butt');
+      strokePoly(polyOffset(pts, -gauge), CONFIG.COL_RAIL, railW, 'butt');
     }
   }
 
   function drawStations(net) {
+    var u = railDir(), ang = Math.atan2(u.y, u.x), S = CONFIG.STATION;
     for (var i = 0; i < net.stations.length; i++) {
       var st = net.stations[i], p = nodePos(net, st.nodeId);
-      var pulse = pulseAmount(st.id);
-      var grow = 1 + pulse * CONFIG.PULSE_GROW;
-      var w = scale * 0.36 * grow, h = scale * 0.2 * grow;
+      var pulse = pulseAmount(st.id), grow = 1 + pulse * CONFIG.PULSE_GROW;
+      var col = mix(palette[st.colorIndex] || '#888', pulse, 255);
+      var pw = scale * S.plat.w * grow, ph = scale * S.plat.h * grow;
+      var hw = scale * S.house.w * grow, hh = scale * S.house.h * grow;
+      var off = scale * S.house.off * grow;
+
       ctx.save();
       ctx.translate(p.x, p.y);
-      ctx.fillStyle = mix(palette[st.colorIndex] || '#888', pulse, 255);
-      ctx.beginPath();
-      ctx.moveTo(-w, 0); ctx.lineTo(0, -h); ctx.lineTo(w, 0); ctx.lineTo(0, h);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.rotate(ang);
+
+      /* Nástupiště podél koleje, s lavičkou. Je laděné do barvy nádraží,
+         aby barva pomáhala rozlišovat i na okraji zorného pole. */
+      ctx.fillStyle = mixHex('#6c7784', col, CONFIG.PLATFORM_TINT);
+      rounded(-pw / 2, -ph / 2, pw, ph, ph * 0.3); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = mixHex('#3f4854', col, CONFIG.PLATFORM_TINT * 0.5);
+      ctx.fillRect(pw * 0.14, -ph * 0.15, pw * 0.18, ph * 0.3);
+
+      /* Budova: obdélník se sedlovou střechou, tedy hřebenem uprostřed
+         a dvěma různě osvětlenými polovinami. */
+      ctx.shadowColor = 'rgba(0,0,0,.5)';
+      ctx.shadowBlur = CONFIG.SHADOW_BLUR; ctx.shadowOffsetY = CONFIG.SHADOW_Y;
+      ctx.fillStyle = col;
+      rounded(-hw / 2, -off - hh / 2, hw, hh, Math.max(2, hh * 0.12)); ctx.fill();
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+      ctx.save();
+      rounded(-hw / 2, -off - hh / 2, hw, hh, Math.max(2, hh * 0.12));
+      ctx.clip();
+      ctx.fillStyle = mix(col, 0.3, 255);
+      ctx.fillRect(-hw / 2, -off - hh / 2, hw, hh / 2);
+      ctx.fillStyle = mix(col, 0.24, 0);
+      ctx.fillRect(-hw / 2, -off, hw, hh / 2);
+      ctx.restore();
+
+      ctx.strokeStyle = 'rgba(0,0,0,.55)';
+      ctx.lineWidth = Math.max(1, hh * 0.07);
+      ctx.beginPath(); ctx.moveTo(-hw / 2, -off); ctx.lineTo(hw / 2, -off); ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 1.5;
+      rounded(-hw / 2, -off - hh / 2, hw, hh, Math.max(2, hh * 0.12)); ctx.stroke();
       ctx.restore();
     }
   }
@@ -1831,76 +2379,150 @@ var Renderer2D = (function () {
     return n.branchSide === 'L' ? n.edgesL : n.edgesR;
   }
 
-  function drawSwitches(net, blockedNodes, cooldowns) {
+  /** Na kterém konci hrany leží uzel a kterým směrem od něj vede. */
+  function fromNode(net, edgeId, nodeId) {
+    return net.edges[edgeId].a === nodeId ? { at: 0, to: 1 } : { at: 1, to: 0 };
+  }
+
+  /**
+   * Jak blízko je vlak, který by po této zavřené větvi vjel do výhybky.
+   * 0 = nikdo, 1 = těsně před uzlem. Slouží k sycení značky zákazu.
+   */
+  function approachHeat(state, nodeId, closedEdgeId) {
+    var net = state.net, e = net.edges[closedEdgeId], best = 0;
+    for (var i = 0; i < state.trains.length; i++) {
+      var tr = state.trains[i];
+      if (tr.headEdge !== closedEdgeId) continue;
+      var arrivesAt = tr.dir > 0 ? e.b : e.a;
+      if (arrivesAt !== nodeId) continue;
+      var dist = (tr.dir > 0 ? (1 - tr.headT) : tr.headT) * e.len;
+      var h = 1 - dist / CONFIG.APPROACH_UNITS;
+      if (h > best) best = h;
+    }
+    return Math.max(0, Math.min(1, best));
+  }
+
+  /**
+   * Kam posadit značku zákazu. Obě větve výhybky vycházejí z uzlu stejným
+   * směrem, takže těsně u něj splývají; značka se proto posune po zavřené
+   * větvi až tam, kde má od otevřené dost místa.
+   *
+   * Výsledek se ukládá do mezipaměti — geometrie se mění jen přehozením
+   * výhybky nebo přepočtem měřítka, ne každý snímek.
+   */
+  /** Přesná vzdálenost bodu od lomené čáry — vzorkování po bodech ji podstřeluje. */
+  function distToPoly(px, py, pts) {
+    var best = Infinity, i, ax, ay, bx, by, dx, dy, L2, t, qx, qy, d;
+    for (i = 1; i < pts.length; i++) {
+      ax = pts[i - 1].x; ay = pts[i - 1].y; bx = pts[i].x; by = pts[i].y;
+      dx = bx - ax; dy = by - ay; L2 = dx * dx + dy * dy;
+      t = L2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L2)) : 0;
+      qx = ax + dx * t; qy = ay + dy * t;
+      d = Math.hypot(px - qx, py - qy);
+      if (d < best) best = d;
+    }
+    return best;
+  }
+
+  var markCache = {};
+  function noEntrySpot(net, n) {
+    var be = branchEdges(net, n);
+    var closed = be[n.active ? 0 : 1], open = be[n.active];
+    var key = n.id + ':' + n.active;
+    if (markCache[key]) return markCache[key];
+
+    var clear = scale * CONFIG.NO_ENTRY_CLEAR * CONFIG.MARK_MARGIN;
+    var dc = fromNode(net, closed, n.id), dop = fromNode(net, open, n.id);
+    var ref = edgePath(net, open, dop.at, dop.at + (dop.to - dop.at) * CONFIG.MARK_MAX_FRACTION);
+    var best = null, bestGap = -1, k, i, f, p, gap, d;
+    for (k = 1; k <= CONFIG.MARK_STEPS; k++) {
+      f = (k / CONFIG.MARK_STEPS) * CONFIG.MARK_MAX_FRACTION;
+      p = edgePoint(net, closed, dc.at + (dc.to - dc.at) * f);
+      gap = distToPoly(p.x, p.y, ref);
+      if (gap >= clear) { markCache[key] = p; return p; }
+      if (gap > bestGap) { bestGap = gap; best = p; }
+    }
+    /*
+     * Nouzově bereme místo s největším odstupem. Značka musí zůstat na ose
+     * své větve — odsunutí stranou vypadá jako chyba vykreslení a hráč pak
+     * neví, ke které koleji značka patří.
+     */
+    markCache[key] = best;
+    return best;
+  }
+
+  function drawSwitches(state, blockedNodes) {
+    var net = state.net, cooldowns = state.cooldowns || {};
     for (var i = 0; i < net.nodes.length; i++) {
       var n = net.nodes[i];
       if (!n || !n.branchSide) continue;
       var p = nodePos(net, n.id), be = branchEdges(net, n);
       var act = be[n.active], ina = be[n.active ? 0 : 1];
-      /* Aktivní větev: silná plná. Neaktivní: tenká přerušovaná.
-         Rozlišení nesmí záviset na odstínu (REQ-REN-006). */
-      drawBranch(net, n, ina, '#5c6b80', Math.max(1.5, scale * 0.02), [5, 5]);
-      drawBranch(net, n, act, '#e8f2ff', Math.max(3, scale * 0.045), null);
-      /* Zavřená větev nese značku zákazu vjezdu: vlak, který sem přijede
-         z této strany, vykolejí. */
-      /* Zvýrazněn je celý průjezdný směr, tedy i kmen na straně s jediným
-         konektorem — bez něj nebylo poznat, kudy vlak výhybkou projede. */
-      var stem = n.branchSide === 'L' ? n.edgesR[0] : n.edgesL[0];
-      if (stem !== undefined) drawBranch(net, n, stem, '#e8f2ff', Math.max(3, scale * 0.045), null);
+      var resting = cooldowns['switch:' + n.id] > 0;
+      var blocked = blockedNodes[n.id];
 
-      var stub = branchPoint(net, n, ina, 0.3);
-      noEntry(stub.x, stub.y, Math.max(6, scale * CONFIG.NO_ENTRY_R));
+      /* Jazyk výhybky: krátký světlý úsek po oblouku aktivní větve.
+         Spolu s mezerou u zavřené větve (viz edgeSpan) nese informaci
+         sama geometrie koleje, ne barevný terč. */
+      var d = fromNode(net, act, n.id);
+      var span = Math.min(0.45, CONFIG.BLADE_UNITS / net.edges[act].len);
+      var t0 = d.at, t1 = d.at + (d.to - d.at) * span;
+      var blade = edgePath(net, act, t0, t1);
+      var g = Math.max(2, scale * CONFIG.GAUGE);
+      var w = Math.max(1.6, scale * 0.02);
+      var col = blocked || resting ? CONFIG.COL_MARK_DIM : CONFIG.COL_MARK;
+      strokePoly(polyOffset(blade, g), col, w, 'butt');
+      strokePoly(polyOffset(blade, -g), col, w, 'butt');
 
-      var tip = edgePoint(net, act, midT(net, act, n.id));
+      /* Šipka na konci jazyka, natočená po tečně oblouku. */
+      var tip = edgePoint(net, act, t1);
       ctx.save();
       ctx.translate(tip.x, tip.y);
-      ctx.rotate(tip.ang + (isForward(net, act, n.id) ? 0 : Math.PI));
-      ctx.fillStyle = '#e8f2ff';
-      var s = Math.max(4, scale * 0.06);
-      ctx.beginPath(); ctx.moveTo(s, 0); ctx.lineTo(-s * 0.6, s * 0.55); ctx.lineTo(-s * 0.6, -s * 0.55);
+      ctx.rotate(tip.ang + (d.to > d.at ? 0 : Math.PI));
+      ctx.fillStyle = col;
+      var ar = Math.max(4, scale * CONFIG.ARROW_R);
+      ctx.beginPath();
+      ctx.moveTo(ar, 0); ctx.lineTo(-ar * 0.55, ar * 0.6); ctx.lineTo(-ar * 0.55, -ar * 0.6);
       ctx.closePath(); ctx.fill();
       ctx.restore();
 
-      var r = Math.max(6, scale * 0.09);
-      var resting = cooldowns && cooldowns['switch:' + n.id] > 0;
-      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = blockedNodes[n.id] ? 'rgba(120,132,150,.85)'
-        : (resting ? 'rgba(60,72,88,.85)' : 'rgba(20,28,38,.85)');
-      ctx.fill();
-      ctx.strokeStyle = blockedNodes[n.id] ? '#8b98aa' : (resting ? '#6f7d90' : '#cfe3f7');
-      ctx.lineWidth = 2; ctx.stroke();
+      /* Značka zákazu na zavřené větvi: v klidu tlumená, sytí se, až když
+         se po ní někdo blíží. */
+      var mark = noEntrySpot(net, n);
+      var heat = approachHeat(state, n.id, ina);
+      noEntry(mark.x, mark.y, Math.max(5, scale * CONFIG.NO_ENTRY_R), heat);
 
-      if (blockedNodes[n.id]) {
-        ctx.fillStyle = '#20303f';
-        ctx.fillRect(p.x - r * 0.32, p.y - r * 0.1, r * 0.64, r * 0.5);
-        ctx.strokeStyle = '#20303f'; ctx.lineWidth = Math.max(1.5, r * 0.14);
-        ctx.beginPath(); ctx.arc(p.x, p.y - r * 0.12, r * 0.24, Math.PI, 0); ctx.stroke();
+      /* Drobný bod uzlu označuje místo kliknutí; zámek jen když vlak zakrývá. */
+      var r = Math.max(3, scale * CONFIG.NODE_DOT_R);
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = blocked ? 'rgba(150,160,172,.9)' : 'rgba(18,25,34,.9)';
+      ctx.fill();
+      ctx.strokeStyle = blocked ? '#8b98aa' : (resting ? '#5c6878' : '#aebfd2');
+      ctx.lineWidth = 1.5; ctx.stroke();
+
+      if (blocked) {
+        var lr = r * 1.5;
+        ctx.fillStyle = '#26313d';
+        ctx.fillRect(p.x - lr * 0.34, p.y - lr * 0.08, lr * 0.68, lr * 0.5);
+        ctx.strokeStyle = '#26313d'; ctx.lineWidth = Math.max(1.2, lr * 0.16);
+        ctx.beginPath(); ctx.arc(p.x, p.y - lr * 0.1, lr * 0.25, Math.PI, 0); ctx.stroke();
       }
     }
   }
 
-  function isForward(net, edgeId, fromNodeId) { return net.edges[edgeId].a === fromNodeId; }
-  function midT(net, edgeId, fromNodeId) { return isForward(net, edgeId, fromNodeId) ? 0.42 : 0.58; }
-
-  function drawBranch(net, n, edgeId, color, width, dash) {
-    var e = net.edges[edgeId];
-    var from = nodePos(net, n.id), to = nodePos(net, e.a === n.id ? e.b : e.a);
-    line(from, { x: from.x + (to.x - from.x) * 0.5, y: from.y + (to.y - from.y) * 0.5 }, color, width, dash);
-  }
-
-  function branchPoint(net, n, edgeId, k) {
-    var e = net.edges[edgeId];
-    var from = nodePos(net, n.id), to = nodePos(net, e.a === n.id ? e.b : e.a);
-    return { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k };
-  }
-
-  /** Značka zákazu vjezdu: červený kruh s bílou vodorovnou čárou. */
-  function noEntry(x, y, r) {
+  /**
+   * Značka zákazu vjezdu. `heat` 0 = klidová tlumená podoba, 1 = plná
+   * červená ve chvíli, kdy se po zavřené větvi blíží vlak.
+   */
+  function noEntry(x, y, r, heat) {
+    var fill = mixHex(CONFIG.NO_ENTRY_CALM, CONFIG.NO_ENTRY_HOT, heat);
+    var bar = mixHex(CONFIG.BAR_CALM, CONFIG.BAR_HOT, heat);
     ctx.save();
+    ctx.globalAlpha = 0.72 + 0.28 * heat;
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#d13b2a'; ctx.fill();
+    ctx.fillStyle = fill; ctx.fill();
     ctx.lineWidth = Math.max(1, r * 0.16); ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.stroke();
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = bar;
     ctx.fillRect(x - r * 0.58, y - r * 0.17, r * 1.16, r * 0.34);
     ctx.restore();
   }
@@ -1921,10 +2543,15 @@ var Renderer2D = (function () {
       var col = palette[tr.colorIndex] || '#ccc';
       ctx.fillStyle = loco ? '#2a3442' : shade(col);
       ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 2;
+      /* Stín kreslí jen podvozek; nástavba už leží na něm. */
+      ctx.shadowColor = 'rgba(0,0,0,.55)';
+      ctx.shadowBlur = CONFIG.SHADOW_BLUR; ctx.shadowOffsetY = CONFIG.SHADOW_Y;
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(-carW / 2, -carH / 2, carW, carH, carH * 0.22);
       else ctx.rect(-carW / 2, -carH / 2, carW, carH);
-      ctx.fill(); ctx.stroke();
+      ctx.fill();
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.stroke();
       if (loco) {
         drawLoco(carW, carH, col);
       } else {
@@ -1949,6 +2576,7 @@ var Renderer2D = (function () {
      ho nemutuje — mění se jen privátní pole tohoto modulu. */
   /* Odjezd vlaku ohlásí nádraží trojím plynulým zesvětlením. Renderer si
      na to drží vlastní časovače a bere je z Busu — herní stav o nich neví. */
+  var lastNet = null;
   var pulses = {};
   Bus.on('station:announced', function (p) {
     if (p && p.stationId !== undefined) pulses[p.stationId] = p.seconds || CONFIG.ANNOUNCE_SECONDS;
@@ -2089,6 +2717,17 @@ var Renderer2D = (function () {
       return ('0' + Math.round(v + (towards - v) * factor).toString(16)).slice(-2);
     }).join('');
   }
+  /** Lineární přechod mezi dvěma odstíny. */
+  function mixHex(a, b, f) {
+    var re = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i;
+    var ma = re.exec(a), mb = re.exec(b);
+    if (!ma || !mb) return a;
+    return '#' + [1, 2, 3].map(function (i) {
+      var v = parseInt(ma[i], 16) + (parseInt(mb[i], 16) - parseInt(ma[i], 16)) * f;
+      return ('0' + Math.round(v).toString(16)).slice(-2);
+    }).join('');
+  }
+
   function shade(hex) { return mix(hex, 0.38, 0); }
   function tint(hex) { return mix(hex, 0.42, 255); }
 
@@ -2108,6 +2747,9 @@ var Renderer2D = (function () {
   function draw(state, alpha) {
     if (!ctx) return;
     lastState = state;
+    /* Nová partie může mít stejné rozměry, ale jinou síť — uložené polohy
+       značek by pak patřily k jiným výhybkám. */
+    if (state.net !== lastNet) { lastNet = state.net; markCache = {}; }
     ensureLayout(state.net);
 
     var ms = clockMs();
@@ -2124,7 +2766,7 @@ var Renderer2D = (function () {
     var net = state.net;
     drawTrack(net);
     drawStations(net);
-    drawSwitches(net, blockedNodeMap(state), state.cooldowns);
+    drawSwitches(state, blockedNodeMap(state));
     var sorted = state.trains.slice().sort(function (a, b) {
       return nodePos(net, net.edges[a.headEdge].a).y - nodePos(net, net.edges[b.headEdge].a).y;
     });
@@ -2151,12 +2793,21 @@ var Renderer2D = (function () {
       if (d < bestD) { bestD = d; best = { type: 'loco', id: tr.id }; }
     }
     if (best) return best;
-    bestD = radius * radius;
+    /*
+     * Zásah výhybky pokrývá uzel i její značku zákazu — hráč má sklon klikat
+     * na značku. Vyhrává nejbližší výhybka, takže se oblasti nemohou překrýt
+     * nejednoznačně: klik na značku je od vlastní výhybky vzdálen nula.
+     */
+    var swR = Math.max(CONFIG.PICK_RADIUS, CONFIG.MIN_TARGET_PX / 2);
+    bestD = swR * swR;
     for (var j = 0; j < net.nodes.length; j++) {
       var n = net.nodes[j];
       if (!n || !n.branchSide) continue;
       var q = nodePos(net, n.id);
       var dd = (q.x - x) * (q.x - x) + (q.y - y) * (q.y - y);
+      var m = noEntrySpot(net, n);
+      var dm = (m.x - x) * (m.x - x) + (m.y - y) * (m.y - y);
+      if (dm < dd) dd = dm;
       if (dd < bestD) { bestD = dd; best = { type: 'switch', id: n.id }; }
     }
     return best || { type: 'none', id: -1 };
@@ -2166,7 +2817,8 @@ var Renderer2D = (function () {
 
   return {
     init: init, resize: resize, draw: draw, pick: pick, dispose: dispose,
-    setPalette: setPalette, setPaused: setPaused, gridToScreen: gridToScreen
+    setPalette: setPalette, setPaused: setPaused, gridToScreen: gridToScreen,
+    edgePoint: edgePoint, noEntrySpot: noEntrySpot
   };
 })();
 
@@ -2221,12 +2873,11 @@ var Audio = (function () {
 
 /* ------------------------------------------------------------------- Stats */
 var Stats = (function () {
-  var OP_NAMES = { '+': 'sčítání', '-': 'odčítání', '*': 'násobení', '/': 'dělení' };
 
   function summary(st) {
     var rows = [];
     for (var op in st.byOp) {
-      rows.push({ name: OP_NAMES[op] || op, total: st.byOp[op].total, ok: st.byOp[op].ok });
+      rows.push({ op: op, total: st.byOp[op].total, ok: st.byOp[op].ok });
     }
     var mistakes = Object.keys(st.mistakes)
       .map(function (k) { return { key: k, n: st.mistakes[k] }; })
@@ -2313,7 +2964,7 @@ var TaskDialog = (function () {
     el.bar = document.getElementById('taskBar');
     el.pad = document.getElementById('taskPad');
     var rows = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['-', '0', 'back']];
-    var labels = { back: '⌫', ok: 'OK', giveup: 'Vzdát se' };
+    var labels = { back: '⌫' };
     rows.forEach(function (row) {
       row.forEach(function (k) {
         var b = document.createElement('button');
@@ -2325,7 +2976,7 @@ var TaskDialog = (function () {
     });
     ['ok', 'giveup'].forEach(function (k) {
       var b = document.createElement('button');
-      b.textContent = labels[k];
+      b.setAttribute('data-i18n', 'task.' + k);
       b.className = k === 'ok' ? 'primary wide' : '';
       b.addEventListener('click', function () { press(k); });
       el.pad.appendChild(b);
@@ -2397,10 +3048,45 @@ var UI = (function () {
     el.over = $('ovOver');
     el.lives = $('hudLives'); el.score = $('hudScore'); el.msg = $('hudMsg');
     el.delivered = $('hudDelivered'); el.pause = $('btnPause'); el.quit = $('btnQuit');
-    el.ops = $('setOps'); el.palette = $('setPalette');
+    el.ops = $('setOps'); el.palette = $('setPalette'); el.lang = $('menuLang');
+    buildLangs();
     el.err = $('setErr'); el.warn = $('setWarn');
     buildOps(); buildPalette();
   }
+
+  /** Přepíše všechny texty rozhraní do aktuálního jazyka. */
+  function applyTexts() {
+    var doc = document.documentElement;
+    if (doc) doc.setAttribute('lang', I18N.get());
+    document.title = I18N.t('doc.title');
+    var i, nodes = document.querySelectorAll('[data-i18n]');
+    for (i = 0; i < nodes.length; i++) {
+      nodes[i].textContent = I18N.t(nodes[i].getAttribute('data-i18n'));
+    }
+    nodes = document.querySelectorAll('[data-i18n-html]');
+    for (i = 0; i < nodes.length; i++) {
+      nodes[i].innerHTML = I18N.t(nodes[i].getAttribute('data-i18n-html'));
+    }
+    if (el.lang) {
+      Array.prototype.forEach.call(el.lang.children, function (b) {
+        b.classList.toggle('sel', b.getAttribute('data-lang') === I18N.get());
+      });
+    }
+    if (draft) syncSettings();
+  }
+
+  function buildLangs() {
+    I18N.langs().forEach(function (code) {
+      var b = document.createElement('button');
+      b.textContent = I18N.name(code);
+      b.setAttribute('data-lang', code);
+      b.addEventListener('click', function () { if (onLang) onLang(code); });
+      el.lang.appendChild(b);
+    });
+  }
+
+  var onLang = null;
+  function setLangHandler(fn) { onLang = fn; }
 
   function buildOps() {
     ['+', '-', '*', '/'].forEach(function (op) {
@@ -2446,10 +3132,10 @@ var UI = (function () {
       box.style.display = 'none';
     } else {
       box.style.display = '';
-      var html = '<h3>Nejlepší výsledky</h3><ol>';
+      var html = '<h3>' + I18N.t('menu.scores') + '</h3><ol>';
       scores.forEach(function (e, i) {
         html += '<li' + (i === freshIndex ? ' class="fresh"' : '') + '>' +
-          '<span class="pts">' + e.score + ' b</span> ' +
+          '<span class="pts">' + e.score + ' ' + I18N.t('unit.points') + '</span> ' +
           '<span class="det">' + e.delivered + ' ✓ · ' + (e.rate || 0) + ' %</span></li>';
       });
       box.innerHTML = html + '</ol>';
@@ -2474,6 +3160,7 @@ var UI = (function () {
     var num = [
       ['setAMin', 'aMin'], ['setAMax', 'aMax'], ['setBMin', 'bMin'], ['setBMax', 'bMax'],
       ['setTime', 'taskTime'], ['setSpeed', 'speedIndex'], ['setCols', 'cols'],
+      ['setCarsStep', 'carsPerStep'],
       ['setShrinkFloor', 'shrinkFloor']
     ];
     num.forEach(function (p) {
@@ -2539,14 +3226,16 @@ var UI = (function () {
     $('setNeg').checked = draft.allowNegative;
     $('setRareZero').checked = draft.rareZero;
     $('setTime').value = draft.taskTime;
-    $('setTimeVal').textContent = draft.taskTime + ' s';
+    $('setTimeVal').textContent = draft.taskTime + ' ' + I18N.t('unit.seconds');
     $('setShrink').checked = draft.shrink;
     $('setShrinkStep').value = Math.round(draft.shrinkStep * 10);
-    $('setShrinkStepVal').textContent = draft.shrinkStep.toFixed(1) + ' s';
+    $('setShrinkStepVal').textContent = draft.shrinkStep.toFixed(1) + ' ' + I18N.t('unit.seconds');
     $('setShrinkFloor').value = draft.shrinkFloor;
-    $('setShrinkFloorVal').textContent = draft.shrinkFloor + ' s';
+    $('setShrinkFloorVal').textContent = draft.shrinkFloor + ' ' + I18N.t('unit.seconds');
     $('setSpeed').value = draft.speedIndex;
-    $('setSpeedVal').textContent = CONFIG.SPEED_NAMES[draft.speedIndex];
+    $('setSpeedVal').textContent = I18N.t('speed.' + draft.speedIndex);
+    $('setCarsStep').value = draft.carsPerStep;
+    $('setCarsStepVal').textContent = I18N.count('unit.trains', draft.carsPerStep);
     $('setCols').value = draft.cols;
     $('setColsVal').textContent = draft.cols;
     $('setSound').checked = draft.sound;
@@ -2557,31 +3246,27 @@ var UI = (function () {
       inp.value = draft.palette[+inp.getAttribute('data-color')];
     });
     var errs = Settings.validate(draft);
-    var texts = {
-      'no-operations': 'Vyber alespoň jednu operaci.',
-      'range-inverted': 'Rozsah má prohozené meze.',
-      'no-valid-task': 'V tomto rozsahu nelze vytvořit žádný příklad. Uprav rozsahy nebo operace.',
-      'cols-out-of-range': 'Šířka kolejiště je mimo rozsah.',
-      'task-time-out-of-range': 'Čas na příklad je mimo rozsah.',
-      'palette-size': 'Barev musí být pět.'
-    };
-    el.err.textContent = errs.map(function (e) { return texts[e] || e; }).join(' ');
+    el.err.textContent = errs.map(function (code) {
+      return I18N.t('err.' + code.split(':')[0]);
+    }).join(' ');
     var warns = Settings.warnings(draft);
-    el.warn.textContent = warns.length
-      ? 'Některé barvy nádraží jsou si příliš podobné — hráč je nemusí rozlišit.' : '';
+    el.warn.textContent = warns.length ? I18N.t('warn.palette') : '';
     $('btnSetSave').disabled = errs.length > 0;
   }
 
   /* ---- HUD ---- */
 
   function hud(state, message, messageKind, paused) {
-    if (el.quit) el.quit.style.display = paused ? '' : 'none';
-    if (el.pause) el.pause.textContent = paused ? 'Pokračovat' : 'Pauza';
+    if (el.quit) {
+      el.quit.style.display = paused ? '' : 'none';
+      el.quit.textContent = I18N.t('hud.quit');
+    }
+    if (el.pause) el.pause.textContent = I18N.t(paused ? 'hud.resume' : 'hud.pause');
     if (!state) return;
     var hearts = '';
     for (var i = 0; i < CONFIG.LIVES_CAP; i++) hearts += i < state.lives ? '♥' : '♡';
     el.lives.textContent = hearts;
-    el.score.textContent = state.score + ' b';
+    el.score.textContent = state.score + ' ' + I18N.t('unit.points');
     el.delivered.textContent = state.delivered + ' ✓';
     el.msg.textContent = message || '';
     el.msg.className = 'msg' + (messageKind ? ' ' + messageKind : '');
@@ -2590,24 +3275,26 @@ var UI = (function () {
   function gameOver(state, freshIndex) {
     var s = Stats.summary(state.stats);
     $('ovScore').textContent = state.score;
-    $('overTitle').textContent = freshIndex === 0 ? 'Nový rekord!'
-      : (freshIndex > 0 ? 'Konec hry — ' + (freshIndex + 1) + '. místo' : 'Konec hry');
-    var html = '<table class="stats"><tr><th>Doručeno vlaků</th><td class="n">' + state.delivered + '</td></tr>' +
-      '<tr><th>Příkladů celkem</th><td class="n">' + s.total + '</td></tr>' +
-      '<tr><th>Úspěšnost</th><td class="n">' + s.rate + ' %</td></tr>' +
-      '<tr><th>Špatná odpověď</th><td class="n">' + s.wrong + '</td></tr>' +
-      '<tr><th>Došel čas</th><td class="n">' + s.timeout + '</td></tr>' +
-      '<tr><th>Vzdáno</th><td class="n">' + s.forfeit + '</td></tr></table>';
+    $('overTitle').textContent = freshIndex === 0 ? I18N.t('over.record')
+      : (freshIndex > 0 ? I18N.t('over.place', { n: freshIndex + 1 }) : I18N.t('over.title'));
+    function row(key, value) {
+      return '<tr><th>' + I18N.t(key) + '</th><td class="n">' + value + '</td></tr>';
+    }
+    var html = '<table class="stats">' + row('over.delivered', state.delivered) +
+      row('over.tasks', s.total) + row('over.rate', s.rate + ' %') +
+      row('over.wrong', s.wrong) + row('over.timeout', s.timeout) +
+      row('over.forfeit', s.forfeit) + '</table>';
     if (s.byOp.length) {
-      html += '<table class="stats"><tr><th>Operace</th><th>Příkladů</th><th>Úspěšnost</th></tr>';
+      html += '<table class="stats"><tr><th>' + I18N.t('over.opHead') + '</th><th>' +
+        I18N.t('over.opCount') + '</th><th>' + I18N.t('over.rate') + '</th></tr>';
       s.byOp.forEach(function (r) {
-        html += '<tr><td>' + r.name + '</td><td class="n">' + r.total + '</td><td class="n">' +
+        html += '<tr><td>' + I18N.t('op.' + r.op) + '</td><td class="n">' + r.total + '</td><td class="n">' +
           (r.total ? Math.round(r.ok / r.total * 100) : 0) + ' %</td></tr>';
       });
       html += '</table>';
     }
     if (s.mistakes.length) {
-      html += '<table class="stats"><tr><th>Nejčastější chyby</th><th>×</th></tr>';
+      html += '<table class="stats"><tr><th>' + I18N.t('over.mistakes') + '</th><th>×</th></tr>';
       s.mistakes.forEach(function (m) {
         html += '<tr><td>' + m.key.replace('*', '×').replace('/', '÷').replace('-', '−') +
           '</td><td class="n">' + m.n + '</td></tr>';
@@ -2620,7 +3307,8 @@ var UI = (function () {
 
   return {
     init: init, menu: menu, hideAll: hideAll, showOverlay: showOverlay,
-    openSettings: openSettings, hud: hud, gameOver: gameOver
+    openSettings: openSettings, hud: hud, gameOver: gameOver,
+    applyTexts: applyTexts, setLangHandler: setLangHandler
   };
 })();
 
@@ -2657,8 +3345,9 @@ var Game = (function () {
 
   function loadSettings() {
     var saved = Persist.load();
-    settings = (saved && saved.settings && Settings.validate(saved.settings).length === 0)
-      ? saved.settings : Settings.defaults();
+    var merged = Settings.merge(saved && saved.settings);
+    settings = Settings.validate(merged).length === 0 ? merged : Settings.defaults();
+    I18N.set(settings.lang);
     scores = Scores.sanitize(saved && saved.scores);
     return settings;
   }
@@ -2717,18 +3406,16 @@ var Game = (function () {
     else if (hit.type === 'loco') tryLoco(hit.id);
   }
 
-  var REASONS = {
-    'train-over-node': 'Výhybku zakrývá vlak.',
-    'input-blocked': 'Ještě moment…',
-    'stop-blocked': 'Tenhle vlak teď zastavit nejde.',
-    'object-cooldown': 'Ještě chvíli počkej.',
-    'already-stopped': '',
-    'not-a-switch': '', 'no-train': '', 'game-over': '', 'not-stopped': ''
+  /* Důvody, které hráči nemá smysl hlásit — na klik prostě nic nedělá. */
+  var QUIET = {
+    'already-stopped': 1, 'not-a-switch': 1, 'no-train': 1,
+    'game-over': 1, 'not-stopped': 1
   };
+  function reasonText(code) { return QUIET[code] ? '' : I18N.t('msg.' + code); }
 
   function tryThrow(nodeId) {
     var can = Sim.canThrowSwitch(state, nodeId);
-    if (!can.ok) { if (REASONS[can.reason]) say(REASONS[can.reason], 'bad'); return; }
+    if (!can.ok) { say(reasonText(can.reason), 'bad'); return; }
     openTask('switch', nodeId);
   }
 
@@ -2737,12 +3424,12 @@ var Game = (function () {
     if (!t) return;
     if (t.state === 'stopped') {
       var rel = Sim.canRelease(state, trainId);
-      if (!rel.ok) { if (REASONS[rel.reason]) say(REASONS[rel.reason], 'bad'); return; }
+      if (!rel.ok) { say(reasonText(rel.reason), 'bad'); return; }
       Sim.releaseTrain(state, trainId);
       return;
     }
     var can = Sim.canStop(state, trainId);
-    if (!can.ok) { if (REASONS[can.reason]) say(REASONS[can.reason], 'bad'); return; }
+    if (!can.ok) { say(reasonText(can.reason), 'bad'); return; }
     openTask('loco', trainId);
   }
 
@@ -2761,17 +3448,17 @@ var Game = (function () {
     if (res.outcome === 'ok') {
       if (p.kind === 'switch') Sim.throwSwitch(state, p.id);
       else Sim.stopTrain(state, p.id);
-      say('Správně', 'ok');
+      say(I18N.t('msg.correct'), 'ok');
     } else if (res.outcome === 'forfeit') {
       /* Vzdání se nic nestojí. Jen na tentýž objekt chvíli nejde kliknout,
          aby se dialog nedal otevírat dokola. */
       Sim.blockObject(state, (p.kind === 'switch' ? 'switch:' : 'train:') + p.id,
         CONFIG.FORFEIT_COOLDOWN_SECONDS);
-      say('Necháno být', '');
+      say(I18N.t('msg.left'), '');
     } else {
       Sim.blockInput(state, CONFIG.ERROR_BLOCK_SECONDS);
       if (p.kind === 'loco') Sim.blockStop(state, p.id);
-      say('Špatně (správně: ' + task.result + ')', 'bad');
+      say(I18N.t('msg.wrong', { n: task.result }), 'bad');
     }
     setMode('PLAY');
     persist();
@@ -2834,7 +3521,17 @@ var Game = (function () {
     getScores: getScores, getFreshIndex: getFreshIndex,
     onPoint: onPoint, onKey: onKey, update: update, frame: frame, persist: persist,
     quitToMenu: quitToMenu,
-    setSettings: function (s) { settings = s; Renderer2D.setPalette(s.palette); Audio.setEnabled(s.sound); },
+    setSettings: function (s) {
+      settings = s;
+      Renderer2D.setPalette(s.palette);
+      Audio.setEnabled(s.sound);
+      I18N.set(s.lang);
+    },
+    setLanguage: function (code) {
+      settings.lang = code;
+      I18N.set(code);
+      persist();
+    },
     getSettings: function () { return settings; }
   };
 })();
@@ -2911,6 +3608,12 @@ function main() {
   Audio.init();
 
   var settings = Game.loadSettings();
+  UI.applyTexts();
+  UI.setLangHandler(function (code) {
+    Game.setLanguage(code);
+    UI.applyTexts();
+    UI.menu(Persist.hasSave(), Game.getScores(), Game.getFreshIndex());
+  });
   Renderer2D.init(canvas, { palette: settings.palette });
   Audio.setEnabled(settings.sound);
 
@@ -2935,6 +3638,7 @@ function main() {
     UI.openSettings(Game.getSettings(), function (saved) {
       Game.setSettings(saved);
       Game.persist();
+      UI.applyTexts();
       UI.menu(Persist.hasSave(), Game.getScores(), Game.getFreshIndex());
     });
   });
@@ -2985,7 +3689,7 @@ if (QUERY.debug || QUERY.selftest) {
   window.__vlacky = {
     QUERY: QUERY, CONFIG: CONFIG, RNG: RNG, Bus: Bus, Settings: Settings, MathTasks: MathTasks,
     TaskOutcome: TaskOutcome, Network: Network, Sim: Sim, Loop: Loop,
-    Renderer2D: Renderer2D, Persist: Persist, Stats: Stats, Scores: Scores, SelfTest: SelfTest,
+    Renderer2D: Renderer2D, Persist: Persist, Stats: Stats, Scores: Scores, I18N: I18N, SelfTest: SelfTest,
     Game: Game, MAX_TRAIN_LEN: MAX_TRAIN_LEN
   };
 }
