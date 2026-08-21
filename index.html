@@ -97,12 +97,12 @@
 <canvas id="game"></canvas>
 
 <div id="hud">
+  <button id="btnQuit"></button>
   <span id="hudLives">♥♥♥♥♥</span>
   <span id="hudScore">0 b</span>
   <span class="msg" id="hudMsg"></span>
   <span id="hudDelivered">0 ✓</span>
   <button id="btnPause"></button>
-  <button id="btnQuit"></button>
 </div>
 
 <div class="overlay" id="ovMenu"><div class="card menuCard">
@@ -180,6 +180,14 @@
     <button class="primary" id="btnHelpBack" data-i18n="help.back"></button></div>
 </div></div>
 
+<div class="overlay" id="ovConfirm"><div class="card">
+  <h2 data-i18n="confirm.title"></h2>
+  <p class="sub" data-i18n="confirm.body"></p>
+  <div class="row" style="justify-content:flex-end">
+    <button id="btnConfirmNo" data-i18n="confirm.no"></button>
+    <button class="primary" id="btnConfirmYes" data-i18n="confirm.yes"></button></div>
+</div></div>
+
 <div class="overlay" id="ovTask"><div class="card" id="taskCard">
   <div class="taskLine" id="taskText">?</div>
   <div class="taskIn" id="taskInput"></div>
@@ -201,6 +209,15 @@
    Pořadí sekcí je závazné (architecture.md §2.2, §14).
    ========================================================================= */
 'use strict';
+
+/*
+ * Testovací režim. Zapíná klávesové zkratky, které obcházejí pravidla hry
+ * a slouží k ručnímu zkoušení. Před vydáním se nastaví na false — tím
+ * všechny zkratky ztichnou, aniž by se musel měnit kód, který je obsluhuje.
+ *
+ *   T — okamžitě vypraví dlouhý vlak bez ohledu na podmínky vzniku
+ */
+var TESTING = false;
 
 var QUERY = (function () {
   var s = '';
@@ -302,6 +319,33 @@ var CONFIG = (function () {
     LIVES_START: 5, LIVES_CAP: 5,
     DELIVERIES_PER_LIFE: 3, DELIVERIES_PER_CAR: 10,
     CARS_STEP_MIN: 1, CARS_STEP_MAX: 30,
+    /* Nejdelší souprava padne dvakrát častěji než samotná lokomotiva;
+       mezilehlé délky leží rovnoměrně mezi tím. */
+    CARS_WEIGHT_RATIO: 2,
+
+    /* Druhy vozů. Osobní jezdí jen v jednodruhové soupravě, nákladní i ve
+       smíšené. Jednodruhová souprava je osobní v polovině případů. */
+    CAR_PASSENGER: 0, CAR_TANK: 1, CAR_LOGS: 2, CAR_CONTAINER: 3,
+    CAR_FREIGHT: [1, 2, 3],
+    SINGLE_TYPE_CHANCE: 0.5, PASSENGER_CHANCE: 0.5,
+
+    /* Dlouhý vlak: vzácná událost. Dvě lokomotivy a patnáct nákladních vozů.
+       Ve hře smí být jen jeden a jen tehdy, když už jezdí delší soupravy. */
+    LONG_CARS: 20, LONG_LOCOS: 2, LONG_CHANCE: 0.02,
+
+    /* Jak daleko za střed nádraží vůz dojede, než zmizí. Čistě vizuální —
+       na kolejích vlak končí už u nádraží, dál je jen vidět. */
+    SINK_DEPTH: 0.35,
+    LONG_MIN_MAXCARS: 3, LONG_ACTIVE_CAP: 3,
+
+    /* Rozvržení nástaveb v místních souřadnicích vozu (podíly délky a šířky). */
+    CAR_ART: {
+      door: 0.18,
+      tank: { w: 0.92, h: 0.72, hatch: 0.09 },
+      logs: { w: 0.94, h: 0.26, gap: 0.32, count: 3 },
+      box: { w: 0.82, h: 0.68, rim: 0.15 }
+    },
+    BOX_DARKEN: 0.62,
     SCORE_PER_CAR: 10, SCORE_FAST_BONUS: 5, FAST_FRACTION: 0.5,
 
     TICK: 1 / 120, MAX_FRAME: 0.25,
@@ -368,6 +412,7 @@ var CONFIG = (function () {
 })();
 
 var MAX_TRAIN_LEN = (1 + CONFIG.MAX_CARS_CAP) * CONFIG.CAR_LEN;
+var LONG_TRAIN_LEN = (CONFIG.LONG_LOCOS + CONFIG.LONG_CARS) * CONFIG.CAR_LEN;
 
 /* --------------------------------------------------------------------- RNG */
 var RNG = (function () {
@@ -467,7 +512,10 @@ var I18N = (function () {
       "help.back": "Zpět",
 
       "task.ok": "OK", "task.giveup": "Vzdát se",
-      "hud.pause": "Pauza", "hud.resume": "Pokračovat", "hud.quit": "Ukončit a do menu",
+      "hud.pause": "Pauza", "hud.resume": "Pokračovat", "hud.quit": "Ukončit hru",
+      "confirm.title": "Opravdu ukončit hru?",
+      "confirm.body": "Rozehraná hra skončí a dosažený výsledek se zapíše do žebříčku.",
+      "confirm.yes": "Ano, ukončit", "confirm.no": "Ne, hrát dál",
 
       "msg.correct": "Správně", "msg.wrong": "Špatně (správně: {n})", "msg.left": "Beze změny",
       "msg.train-over-node": "Výhybku zakrývá vlak.",
@@ -533,7 +581,10 @@ var I18N = (function () {
       "help.back": "Back",
 
       "task.ok": "OK", "task.giveup": "Give up",
-      "hud.pause": "Pause", "hud.resume": "Resume", "hud.quit": "Quit to menu",
+      "hud.pause": "Pause", "hud.resume": "Resume", "hud.quit": "Quit game",
+      "confirm.title": "Really quit the game?",
+      "confirm.body": "The current game will end and your score will go into the best scores.",
+      "confirm.yes": "Yes, quit", "confirm.no": "No, keep playing",
 
       "msg.correct": "Correct", "msg.wrong": "Wrong (answer: {n})", "msg.left": "Left unchanged",
       "msg.train-over-node": "A train is covering the switch.",
@@ -599,7 +650,10 @@ var I18N = (function () {
       "help.back": "Voltar",
 
       "task.ok": "OK", "task.giveup": "Desistir",
-      "hud.pause": "Pausa", "hud.resume": "Continuar", "hud.quit": "Sair para o menu",
+      "hud.pause": "Pausa", "hud.resume": "Continuar", "hud.quit": "Terminar o jogo",
+      "confirm.title": "Queres mesmo terminar o jogo?",
+      "confirm.body": "O jogo atual termina e o teu resultado vai para os melhores resultados.",
+      "confirm.yes": "Sim, terminar", "confirm.no": "Não, continuar a jogar",
 
       "msg.correct": "Certo", "msg.wrong": "Errado (certo: {n})", "msg.left": "Deixado como está",
       "msg.train-over-node": "Um comboio está a tapar a agulha.",
@@ -1416,8 +1470,14 @@ var Sim = (function () {
    * Rozprostře těleso vlaku dozadu po již projetých hranách (`trail`).
    * Bez historie by se ocas při pozdějším přehození výhybky přemístil.
    */
+  /** Délka soupravy: lokomotivy i vozy mají stejnou délku. */
+  function trainLen(t) { return ((t.locos || 1) + t.cars) * CONFIG.CAR_LEN; }
+
   function body(net, t) {
-    var total = (1 + t.cars) * CONFIG.CAR_LEN;
+    /* Vlak, který zajíždí do stanice, je vidět jen tou částí, která ještě
+       stojí na kolejích; zbytek už je uvnitř. */
+    var total = trainLen(t) - (t.sunk || 0);
+    if (total <= CONFIG.EPS) return { segs: [], keepFrom: t.trail.length };
     var segs = [], edgeId = t.headEdge, pos = t.headT;
     var k = t.trail.length - 1, remaining = total, guard = 0;
     while (remaining > CONFIG.EPS && guard++ < 64) {
@@ -1465,6 +1525,12 @@ var Sim = (function () {
 
   function moveTrain(state, t, dt, removed) {
     var net = state.net, remaining = speedOf(state) * dt, guard = 0;
+    /* Zajíždění do stanice: čelo stojí, souprava se do ní postupně vtahuje. */
+    if (t.arriving) {
+      t.sunk += remaining;
+      if (t.sunk >= trainLen(t) + CONFIG.SINK_DEPTH) removed.push(t);
+      return;
+    }
     while (remaining > CONFIG.EPS && guard++ < 64) {
       var e = net.edges[t.headEdge];
       var toEnd = (t.dir > 0 ? (1 - t.headT) : t.headT) * e.len;
@@ -1475,7 +1541,11 @@ var Sim = (function () {
       remaining -= toEnd;
       var nodeId = t.dir > 0 ? e.b : e.a;
       var node = net.nodes[nodeId];
-      if (node.stationId !== null) { arrive(state, t, node); removed.push(t); return; }
+      if (node.stationId !== null) {
+        t.headT = t.dir > 0 ? 1 : 0;
+        arrive(state, t, node);
+        return;
+      }
       var res = Network.traverse(net, nodeId, t.headEdge, t.dir);
       if (res.derail || res.exitEdge === null) {
         Bus.emit('train:lost', { trainId: t.id, cause: 'derail' });
@@ -1487,12 +1557,19 @@ var Sim = (function () {
     }
   }
 
+  /**
+   * Čelo vlaku dojelo do stanice. O výsledku je rozhodnuto hned — hráč má
+   * dostat zpětnou vazbu okamžitě — ale vlak ze hry nemizí, dokud do stanice
+   * nezajede i poslední vůz. Do té doby zůstává překážkou na kolejích.
+   */
   function arrive(state, t, node) {
     var st = state.net.stations[node.stationId];
+    t.arriving = true;
+    t.sunk = 0;
     if (st.colorIndex === t.colorIndex) {
       state.delivered++;
       state.deliveredStreak++;
-      var pts = CONFIG.SCORE_PER_CAR * (1 + t.cars);
+      var pts = CONFIG.SCORE_PER_CAR * ((t.locos || 1) + t.cars);
       state.score += pts;
       state.maxCars = Math.min(CONFIG.MAX_CARS_CAP,
         CONFIG.MAX_CARS_START + Math.floor(state.delivered / state.settings.carsPerStep));
@@ -1601,10 +1678,11 @@ var Sim = (function () {
 
   /* ------------------------------------------------------------- generování */
 
-  function zoneEdges(net, station) {
+  function zoneEdges(net, station, len) {
+    var need = (len === undefined ? MAX_TRAIN_LEN : len) + CONFIG.PROTECT_EXTRA;
     var out = [], dist = 0, dir = station.side === 'L' ? 1 : -1;
     var cur = station.nodeId, guard = 0;
-    while (dist < MAX_TRAIN_LEN + CONFIG.PROTECT_EXTRA && guard++ < 32) {
+    while (dist < need && guard++ < 64) {
       var n = net.nodes[cur];
       var outs = dir > 0 ? n.edgesR : n.edgesL;
       if (!outs.length) break;
@@ -1616,8 +1694,8 @@ var Sim = (function () {
     return out;
   }
 
-  function zoneFree(state, station, occupiedEdges) {
-    var z = zoneEdges(state.net, station);
+  function zoneFree(state, station, occupiedEdges, len) {
+    var z = zoneEdges(state.net, station, len);
     for (var i = 0; i < z.length; i++) if (occupiedEdges[z[i]]) return false;
     return true;
   }
@@ -1715,9 +1793,40 @@ var Sim = (function () {
   }
 
   /** Kolik vlaků smí být na kolejišti právě teď (náběh podle doručení). */
+  function hasLong(state) {
+    if (state.pending && state.pending.long) return true;
+    for (var i = 0; i < state.trains.length; i++) if (state.trains[i].long) return true;
+    return false;
+  }
+
   function activeCap(state) {
-    return Math.min(CONFIG.MAX_ACTIVE_TRAINS,
+    var cap = Math.min(CONFIG.MAX_ACTIVE_TRAINS,
       CONFIG.ACTIVE_START + Math.floor(state.delivered / CONFIG.ACTIVE_PER_DELIVERIES));
+    /* Dokud je na kolejišti dlouhý vlak, drží se provoz při zemi. Vlaky,
+       které už jezdí, se neruší — jen nepřibývají nové. */
+    if (hasLong(state)) cap = Math.min(cap, CONFIG.LONG_ACTIVE_CAP);
+    return cap;
+  }
+
+  /**
+   * Smí teď vzniknout dlouhý vlak? Jen jeden naráz, až když už jezdí delší
+   * soupravy, a jen na klidném kolejišti.
+   */
+  function canSpawnLong(state) {
+    if (hasLong(state)) return false;
+    if (state.maxCars < CONFIG.LONG_MIN_MAXCARS) return false;
+    return state.trains.length < CONFIG.LONG_ACTIVE_CAP;
+  }
+
+  /**
+   * Dlouhý vlak nesmí vyjet ze stanice, do které má někdo namířeno —
+   * zabral by ji na dlouhou dobu a přijíždějící vlak by neměl kam dojet.
+   */
+  function longStartOk(state, station) {
+    for (var i = 0; i < state.trains.length; i++) {
+      if (state.trains[i].destStationId === station.id) return false;
+    }
+    return true;
   }
 
   /** Prodleva mezi vlaky: z počátečního rozsahu se plynule stahuje k cílovému. */
@@ -1738,12 +1847,30 @@ var Sim = (function () {
    * První fáze generování: vybere odjezd a ohlásí ho nádraží. Vlak zatím
    * nevzniká — hráč má nejdřív dostat signál, odkud za chvíli vyjede.
    */
+  /** Nádraží, ze kterých teď smí vyjet vlak daného druhu. */
+  function pickStarts(state, occupied, long) {
+    var need = long ? LONG_TRAIN_LEN : MAX_TRAIN_LEN;
+    return state.net.stations.filter(function (st) {
+      if (long && !longStartOk(state, st)) return false;
+      return zoneFree(state, st, occupied, need);
+    });
+  }
+
   function announce(state) {
     var net = state.net, rng = state._worldRng;
     if (state.pending) return false;
     if (state.trains.length >= activeCap(state)) return false;
     var occupied = occupiedEdgeSet(state);
-    var starts = net.stations.filter(function (s) { return zoneFree(state, s, occupied); });
+    var long = canSpawnLong(state) && rng.next() < CONFIG.LONG_CHANCE;
+    var need = long ? LONG_TRAIN_LEN : MAX_TRAIN_LEN;
+    var starts = pickStarts(state, occupied, long);
+    if (!starts.length && long) {
+      /* Pro dlouhý vlak se nenašlo místo. Vypravíme aspoň běžný, ať se
+         příležitost nezahodí — jinak by kolejiště zůstalo o vlak chudší. */
+      long = false;
+      need = MAX_TRAIN_LEN;
+      starts = pickStarts(state, occupied, false);
+    }
     if (!starts.length) return false;
     var occ = predict(state);
     rng.shuffle(starts);
@@ -1756,7 +1883,7 @@ var Sim = (function () {
         perColor[state.trains[q].colorIndex] = (perColor[state.trains[q].colorIndex] || 0) + 1;
       }
       var dests = net.stations.filter(function (d) {
-        return d.side !== s.side && zoneFree(state, d, occupied)
+        return d.side !== s.side && zoneFree(state, d, occupied, need)
           && (perColor[d.colorIndex] || 0) < CONFIG.MAX_TRAINS_PER_COLOR;
       });
       rng.shuffle(dests);
@@ -1767,9 +1894,11 @@ var Sim = (function () {
         var d = dests[j];
         if (!Network.routeExists(net, s.id, d.id)) continue;
         if (!isSolvable(state, s, d, occ)) continue;
+        var cars = long ? CONFIG.LONG_CARS : pickCars(rng, state.maxCars);
         state.pending = {
           stationId: s.id, destStationId: d.id,
-          cars: rng.int(0, state.maxCars),
+          cars: cars, types: pickCarTypes(rng, cars, long),
+          locos: long ? CONFIG.LONG_LOCOS : 1, long: long,
           timer: CONFIG.ANNOUNCE_SECONDS, wait: 0
         };
         Bus.emit('station:announced', { stationId: s.id, seconds: CONFIG.ANNOUNCE_SECONDS });
@@ -1779,21 +1908,70 @@ var Sim = (function () {
     return false;
   }
 
-  function spawn(state, from, to, cars) {
+  /**
+   * Počet vagonů. Rozdělení je lineárně nakloněné k delším soupravám:
+   * váha roste od 1 u samotné lokomotivy po CARS_WEIGHT_RATIO u nejdelšího
+   * vlaku. Rovnoměrné losování dávalo příliš mnoho vlaků bez vagonů.
+   */
+  function pickCars(rng, max) {
+    if (max <= 0) return 0;
+    var ratio = CONFIG.CARS_WEIGHT_RATIO;
+    var total = (max + 1) * (1 + ratio) / 2;
+    var r = rng.next() * total, acc = 0;
+    for (var n = 0; n <= max; n++) {
+      acc += 1 + (ratio - 1) * n / max;
+      if (r < acc) return n;
+    }
+    return max;
+  }
+
+  /**
+   * Složení soupravy. Vlak je buď jednodruhový, nebo smíšený; osobní vozy
+   * jezdí výhradně v jednodruhovém, a ten je osobní v polovině případů.
+   */
+  function pickCarTypes(rng, cars, freightOnly) {
+    var types = [], i, t;
+    var freight = CONFIG.CAR_FREIGHT;
+    if (freightOnly) {
+      t = freight[rng.int(0, freight.length - 1)];
+      var single = rng.next() < CONFIG.SINGLE_TYPE_CHANCE;
+      for (i = 0; i < cars; i++) {
+        types.push(single ? t : freight[rng.int(0, freight.length - 1)]);
+      }
+      return types;
+    }
+    /* Pořadí rozhodnutí je podstatné: osobní vlak se losuje jako první,
+       jinak by ho ředila ještě volba mezi jednodruhovým a smíšeným. */
+    if (rng.next() < CONFIG.PASSENGER_CHANCE) {
+      for (i = 0; i < cars; i++) types.push(CONFIG.CAR_PASSENGER);
+      return types;
+    }
+    if (rng.next() < CONFIG.SINGLE_TYPE_CHANCE) {
+      t = freight[rng.int(0, freight.length - 1)];
+      for (i = 0; i < cars; i++) types.push(t);
+    } else {
+      for (i = 0; i < cars; i++) types.push(freight[rng.int(0, freight.length - 1)]);
+    }
+    return types;
+  }
+
+  function spawn(state, from, to, spec) {
     var net = state.net;
     var dir = from.side === 'L' ? 1 : -1;
     var node = net.nodes[from.nodeId];
     var edge = (dir > 0 ? node.edgesR : node.edgesL)[0];
     var t = {
       id: state.nextTrainId++, colorIndex: to.colorIndex,
-      cars: cars,
+      cars: spec.cars, types: (spec.types || []).slice(),
+      locos: spec.locos || 1, long: !!spec.long,
+      arriving: false, sunk: 0,
       headEdge: edge, headT: dir > 0 ? 0 : 1, dir: dir, trail: [],
       state: 'running', stopTimer: 0, stopBlockTimer: 0,
       destStationId: to.id
     };
     state.trains.push(t);
     reschedule(state);
-    Bus.emit('train:spawned', { trainId: t.id, stationId: from.id });
+    Bus.emit('train:spawned', { trainId: t.id, stationId: from.id, long: t.long });
     return t;
   }
 
@@ -1806,15 +1984,44 @@ var Sim = (function () {
     var p = state.pending;
     if (!p) return null;
     var from = state.net.stations[p.stationId], to = state.net.stations[p.destStationId];
-    if (!zoneFree(state, from, occupiedEdgeSet(state))) {
+    if (!zoneFree(state, from, occupiedEdgeSet(state), p.long ? LONG_TRAIN_LEN : MAX_TRAIN_LEN)) {
       p.wait += CONFIG.TICK;
       if (p.wait > CONFIG.ANNOUNCE_SECONDS) { state.pending = null; reschedule(state); }
       return null;
     }
-    var t = spawn(state, from, to, p.cars);
+    var t = spawn(state, from, to, p);
     state.pending = null;
     reschedule(state);
     return t;
+  }
+
+  /**
+   * Vypraví dlouhý vlak okamžitě a bez ohledu na podmínky vzniku.
+   * Nástroj testovacího režimu, ne součást hry — jediné, co se hlídá, je
+   * volná nájezdová kolej, jinak by vlak vznikl rovnou do srážky.
+   */
+  function forceLong(state) {
+    var net = state.net, rng = state._worldRng;
+    var occupied = occupiedEdgeSet(state);
+    var starts = net.stations.filter(function (st) {
+      return zoneFree(state, st, occupied, LONG_TRAIN_LEN);
+    });
+    if (!starts.length) starts = net.stations.slice();
+    rng.shuffle(starts);
+    var from = starts[0], to = null, i;
+    var dests = net.stations.filter(function (d) { return d.side !== from.side; });
+    rng.shuffle(dests);
+    for (i = 0; i < dests.length; i++) {
+      if (Network.routeExists(net, from.id, dests[i].id)) { to = dests[i]; break; }
+    }
+    if (!to) to = dests[0];
+    state.pending = null;
+    return spawn(state, from, to, {
+      cars: CONFIG.LONG_CARS,
+      types: pickCarTypes(rng, CONFIG.LONG_CARS, true),
+      locos: CONFIG.LONG_LOCOS,
+      long: true
+    });
   }
 
   function spawnStep(state, dt) {
@@ -1903,6 +2110,7 @@ var Sim = (function () {
     if (cooldownLeft(state, 'train:' + trainId) > 0) return { ok: false, reason: 'object-cooldown' };
     var t = trainById(state, trainId);
     if (!t) return { ok: false, reason: 'no-train' };
+    if (t.arriving) return { ok: false, reason: 'arriving' };
     if (t.state === 'stopped') return { ok: false, reason: 'already-stopped' };
     if (t.stopBlockTimer > 0) return { ok: false, reason: 'stop-blocked' };
     return { ok: true, reason: '' };
@@ -1987,7 +2195,9 @@ var Sim = (function () {
       stationColors: state.net.stations.map(function (s) { return s.colorIndex; }),
       trains: state.trains.map(function (t) {
         return {
-          id: t.id, colorIndex: t.colorIndex, cars: t.cars, headEdge: t.headEdge,
+          id: t.id, colorIndex: t.colorIndex, cars: t.cars, types: (t.types || []).slice(),
+          locos: t.locos || 1, long: !!t.long, arriving: !!t.arriving, sunk: t.sunk || 0,
+          headEdge: t.headEdge,
           headT: t.headT, dir: t.dir, trail: t.trail.slice(), state: t.state,
           stopTimer: t.stopTimer, stopBlockTimer: t.stopBlockTimer, destStationId: t.destStationId
         };
@@ -2016,7 +2226,9 @@ var Sim = (function () {
     for (i = 0; i < state.net.stations.length; i++) state.net.stations[i].colorIndex = obj.stationColors[i];
     state.trains = obj.trains.map(function (t) {
       return {
-        id: t.id, colorIndex: t.colorIndex, cars: t.cars, headEdge: t.headEdge,
+        id: t.id, colorIndex: t.colorIndex, cars: t.cars, types: (t.types || []).slice(),
+        locos: t.locos || 1, long: !!t.long, arriving: !!t.arriving, sunk: t.sunk || 0,
+        headEdge: t.headEdge,
         headT: t.headT, dir: t.dir, trail: t.trail.slice(), state: t.state,
         stopTimer: t.stopTimer, stopBlockTimer: t.stopBlockTimer, destStationId: t.destStationId
       };
@@ -2046,6 +2258,8 @@ var Sim = (function () {
     trainById: trainById, emptyStats: emptyStats,
     zoneEdges: zoneEdges, isSolvable: isSolvable, predict: predict, spawn: spawn,
     announce: announce, materialize: materialize, nodeOccupied: nodeOccupied,
+    pickCars: pickCars, pickCarTypes: pickCarTypes, trainLen: trainLen, forceLong: forceLong,
+    hasLong: hasLong, canSpawnLong: canSpawnLong,
     activeCap: activeCap, spawnRange: spawnRange
   };
 })();
@@ -2225,8 +2439,21 @@ var Renderer2D = (function () {
     return Math.hypot(b.x - a.x, b.y - a.y) / e.len;
   }
 
-  /** Bod ve vzdálenosti `dist` za čelem vlaku, po skutečně projeté trase. */
+  /**
+   * Bod ve vzdálenosti `dist` za čelem vlaku, po skutečně projeté trase.
+   * Záporná vzdálenost míří před čelo — používá se, když vlak zajíždí do
+   * nádraží a vozy mají projet ještě kus za jeho střed.
+   */
   function walkBack(net, tr, dist, headT) {
+    if (dist < 0) {
+      var head = edgePoint(net, tr.headEdge, headT);
+      var reach = -dist * pxPerUnit(net, tr.headEdge) * (tr.dir > 0 ? 1 : -1);
+      return {
+        x: head.x + Math.cos(head.ang) * reach,
+        y: head.y + Math.sin(head.ang) * reach,
+        ang: head.ang, edge: tr.headEdge
+      };
+    }
     var edgeId = tr.headEdge, pos = headT, k = tr.trail.length - 1, guard = 0;
     while (guard++ < 64) {
       var e = net.edges[edgeId];
@@ -2247,7 +2474,7 @@ var Renderer2D = (function () {
   }
 
   function visualHeadT(state, tr, alpha) {
-    if (tr.state !== 'running') return tr.headT;
+    if (tr.state !== 'running' || tr.arriving) return tr.headT;
     var e = state.net.edges[tr.headEdge];
     var t = tr.headT + tr.dir * alpha * Sim.speedOf(state) * CONFIG.TICK / e.len;
     return Math.max(0, Math.min(1, t));
@@ -2530,8 +2757,12 @@ var Renderer2D = (function () {
   function drawTrain(state, tr, alpha) {
     var net = state.net, headT = visualHeadT(state, tr, alpha);
     var carH = Math.max(6, scale * CONFIG.CAR_WIDTH);
-    for (var i = tr.cars; i >= 0; i--) {
-      var d = (i + 0.5) * CONFIG.CAR_LEN;
+    var locos = tr.locos || 1, sunk = tr.sunk || 0;
+    for (var i = locos + tr.cars - 1; i >= 0; i--) {
+      /* Vozy, které už zajely do stanice, se nekreslí; ostatní se posunou
+         o ujetou část, takže souprava do stanice plynule vjíždí. */
+      var d = (i + 0.5) * CONFIG.CAR_LEN - sunk;
+      if (d < (tr.arriving ? -CONFIG.SINK_DEPTH : 0)) continue;
       var p = walkBack(net, tr, d, headT);
       /* Délka vozu se odvozuje ze skutečné rozteče na obrazovce, aby vozy
          na sebe navazovaly a nepřekrývaly se. */
@@ -2539,7 +2770,7 @@ var Renderer2D = (function () {
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.ang + (tr.dir > 0 ? 0 : Math.PI));
-      var loco = i === 0;
+      var loco = i < locos;
       var col = palette[tr.colorIndex] || '#ccc';
       ctx.fillStyle = loco ? '#2a3442' : shade(col);
       ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 2;
@@ -2555,11 +2786,7 @@ var Renderer2D = (function () {
       if (loco) {
         drawLoco(carW, carH, col);
       } else {
-        ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-carW * 0.18, -carH / 2); ctx.lineTo(-carW * 0.18, carH / 2);
-        ctx.moveTo(carW * 0.18, -carH / 2); ctx.lineTo(carW * 0.18, carH / 2);
-        ctx.stroke();
+        drawCar((tr.types || [])[i - locos] || CONFIG.CAR_PASSENGER, carW, carH, col);
       }
       ctx.restore();
     }
@@ -2602,10 +2829,13 @@ var Renderer2D = (function () {
   /** Při pauze se kouř zmrazí — jinak by se hra „hýbala" i ve stojící scéně. */
   function setPaused(v) { paused = !!v; }
 
-  /** Vrchol komínu lokomotivy v obrazovkových souřadnicích. */
-  function chimneyTop(state, tr, headT) {
+  /**
+   * Vrchol komínu `index`-té lokomotivy v obrazovkových souřadnicích.
+   * Dlouhý vlak má v čele dvě, a kouřit mají obě.
+   */
+  function chimneyTop(state, tr, headT, index) {
     var net = state.net;
-    var p = walkBack(net, tr, CONFIG.CAR_LEN * 0.5, headT);
+    var p = walkBack(net, tr, ((index || 0) + 0.5) * CONFIG.CAR_LEN, headT);
     var carH = Math.max(6, scale * CONFIG.CAR_WIDTH);
     var carW = Math.max(6, CONFIG.CAR_LEN * pxPerUnit(net, p.edge) * CONFIG.CAR_DRAW_FRACTION);
     var lx = carW * CONFIG.LOCO.chimney.x * tr.dir, ly = 0;
@@ -2616,18 +2846,21 @@ var Renderer2D = (function () {
   function emitSmoke(state, dt, alpha) {
     for (var i = 0; i < state.trains.length; i++) {
       var tr = state.trains[i];
-      if (tr.state !== 'running') continue;
+      if (tr.state !== 'running' || tr.arriving) continue;
       var e = (emitAt[tr.id] || 0) - dt;
       if (e > 0) { emitAt[tr.id] = e; continue; }
       emitAt[tr.id] = CONFIG.SMOKE_INTERVAL;
-      if (puffs.length >= CONFIG.SMOKE_MAX) puffs.shift();
-      var p = chimneyTop(state, tr, visualHeadT(state, tr, alpha || 0));
-      puffs.push({
-        x: p.x, y: p.y,
-        age: 0, color: palette[tr.colorIndex] || '#ccc',
-        /* Rozptyl bez Math.random — náhoda patří výhradně do RNG (REQ-ARC-013). */
-        wobble: (((tr.id * 37 + puffs.length * 13) % 100) / 100 - 0.5) * scale * 0.09
-      });
+      var headT = visualHeadT(state, tr, alpha || 0);
+      for (var k = 0; k < (tr.locos || 1); k++) {
+        if (puffs.length >= CONFIG.SMOKE_MAX) puffs.shift();
+        var p = chimneyTop(state, tr, headT, k);
+        puffs.push({
+          x: p.x, y: p.y,
+          age: 0, color: palette[tr.colorIndex] || '#ccc',
+          /* Rozptyl bez Math.random — náhoda patří výhradně do RNG (REQ-ARC-013). */
+          wobble: (((tr.id * 37 + puffs.length * 13) % 100) / 100 - 0.5) * scale * 0.09
+        });
+      }
     }
     var live = [];
     for (i = 0; i < puffs.length; i++) {
@@ -2656,6 +2889,56 @@ var Renderer2D = (function () {
    * a parním dómem, na druhém konci kabina strojvedoucího.
    * Kreslí se v místních souřadnicích, kde +x je směr jízdy.
    */
+  /** Nástavba vozu podle druhu; korba už je vykreslená v barvě vlaku. */
+  function drawCar(type, carW, carH, col) {
+    var A = CONFIG.CAR_ART, i, y;
+
+    if (type === CONFIG.CAR_TANK) {
+      /* Cisterna: kapsle posazená na korbě. */
+      var tw = carW * A.tank.w, th = carH * A.tank.h;
+      ctx.fillStyle = col;
+      ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.2;
+      rounded(-tw / 2, -th / 2, tw, th, th / 2);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, carH * A.tank.hatch, 0, Math.PI * 2);
+      ctx.fillStyle = mix(col, 0.45, 0); ctx.fill();
+      return;
+    }
+
+    if (type === CONFIG.CAR_LOGS) {
+      /* Klády: tři podélné kmeny naložené v korbě. Jsou v barvě vlaku,
+         jen světlejší než korba, aby souprava zůstala barevně jednotná. */
+      var lw = carW * A.logs.w, lh = carH * A.logs.h;
+      ctx.fillStyle = tint(col);
+      ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1;
+      for (i = 0; i < A.logs.count; i++) {
+        y = (i - (A.logs.count - 1) / 2) * carH * A.logs.gap;
+        rounded(-lw / 2, y - lh / 2, lw, lh, lh / 2);
+        ctx.fill(); ctx.stroke();
+      }
+      return;
+    }
+
+    if (type === CONFIG.CAR_CONTAINER) {
+      /* Otevřený kontejner: vsazená schrána bez střechy. */
+      var bw = carW * A.box.w, bh = carH * A.box.h;
+      ctx.fillStyle = mix(col, CONFIG.BOX_DARKEN, 0);
+      ctx.strokeStyle = tint(col);
+      ctx.lineWidth = Math.max(1.6, carH * A.box.rim);
+      rounded(-bw / 2, -bh / 2, bw, bh, Math.max(1, bh * 0.12));
+      ctx.fill(); ctx.stroke();
+      return;
+    }
+
+    /* Osobní: dveře po stranách. */
+    ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-carW * A.door, -carH / 2); ctx.lineTo(-carW * A.door, carH / 2);
+    ctx.moveTo(carW * A.door, -carH / 2); ctx.lineTo(carW * A.door, carH / 2);
+    ctx.stroke();
+  }
+
   function drawLoco(carW, carH, col) {
     var L = CONFIG.LOCO;
 
@@ -3045,7 +3328,7 @@ var UI = (function () {
 
   function init() {
     el.menu = $('ovMenu'); el.settings = $('ovSettings'); el.help = $('ovHelp');
-    el.over = $('ovOver');
+    el.over = $('ovOver'); el.confirm = $('ovConfirm');
     el.lives = $('hudLives'); el.score = $('hudScore'); el.msg = $('hudMsg');
     el.delivered = $('hudDelivered'); el.pause = $('btnPause'); el.quit = $('btnQuit');
     el.ops = $('setOps'); el.palette = $('setPalette'); el.lang = $('menuLang');
@@ -3116,7 +3399,7 @@ var UI = (function () {
   }
 
   function showOverlay(name) {
-    ['menu', 'settings', 'help', 'over'].forEach(function (k) {
+    ['menu', 'settings', 'help', 'over', 'confirm'].forEach(function (k) {
       if (el[k]) el[k].classList.toggle('on', k === name);
     });
   }
@@ -3258,6 +3541,10 @@ var UI = (function () {
 
   function hud(state, message, messageKind, paused) {
     if (el.quit) {
+      /* Ukončení sedí na opačném konci lišty než pauza. Pauza je poslední
+         prvek, takže si drží polohu u pravého okraje i když se ukončení
+         objeví — jinak by se posunula zrovna ve chvíli, kdy na ni hráč
+         míří podruhé. */
       el.quit.style.display = paused ? '' : 'none';
       el.quit.textContent = I18N.t('hud.quit');
     }
@@ -3339,6 +3626,8 @@ var Game = (function () {
   var pending = null, scores = [], freshIndex = -1;
 
   function setMode(m) { mode = m; }
+  var onConfirmClose = null;
+  function setConfirmHandler(fn) { onConfirmClose = fn; }
   function getMode() { return mode; }
   function isPaused() { return mode !== 'PLAY'; }
   function getState() { return state; }
@@ -3482,6 +3771,17 @@ var Game = (function () {
    * Ukončí rozehranou hru a vrátí se do menu. Dosažený výsledek se do
    * žebříčku započítá — hráč si ho odehrál, jen se rozhodl skončit dřív.
    */
+  /** Ukončení hry se ptá; potvrzení běží jako samostatný stav. */
+  function askQuit() {
+    if (mode !== 'PAUSED') return false;
+    setMode('CONFIRM');
+    return true;
+  }
+
+  function cancelQuit() {
+    if (mode === 'CONFIRM') setMode('PAUSED');
+  }
+
   function quitToMenu() {
     recordScore();
     state = null;
@@ -3490,6 +3790,16 @@ var Game = (function () {
 
   function onKey(ev) {
     if (mode === 'TASK') { if (TaskDialog.key(ev)) ev.preventDefault(); return; }
+    if (mode === 'CONFIRM') {
+      if (ev.key === 'Escape') { cancelQuit(); if (onConfirmClose) onConfirmClose(false); }
+      else if (ev.key === 'Enter') { if (onConfirmClose) onConfirmClose(true); }
+      return;
+    }
+    /* Zkratky testovacího režimu; ve vydané hře jsou vypnuté. */
+    if (TESTING && (ev.key === 't' || ev.key === 'T')) {
+      if (mode === 'PLAY' && state) Sim.forceLong(state);
+      return;
+    }
     if (ev.key === 'p' || ev.key === 'P') {
       if (mode === 'PLAY') setMode('PAUSED');
       else if (mode === 'PAUSED') setMode('PLAY');
@@ -3512,15 +3822,17 @@ var Game = (function () {
       messageTimer -= dt;
       if (messageTimer <= 0) { message = ''; messageKind = ''; }
     }
-    UI.hud(state, mode === 'PAUSED' ? 'Pauza' : message, messageKind, mode === 'PAUSED');
+    var halted = mode === 'PAUSED' || mode === 'CONFIRM';
+    UI.hud(state, halted ? I18N.t('hud.pause') : message, messageKind, halted);
   }
 
   return {
     setMode: setMode, getMode: getMode, isPaused: isPaused, getState: getState,
+    setConfirmHandler: setConfirmHandler,
     newGame: newGame, continueGame: continueGame, loadSettings: loadSettings,
     getScores: getScores, getFreshIndex: getFreshIndex,
     onPoint: onPoint, onKey: onKey, update: update, frame: frame, persist: persist,
-    quitToMenu: quitToMenu,
+    quitToMenu: quitToMenu, askQuit: askQuit, cancelQuit: cancelQuit,
     setSettings: function (s) {
       settings = s;
       Renderer2D.setPalette(s.palette);
@@ -3648,10 +3960,22 @@ function main() {
   document.getElementById('btnOverBack').addEventListener('click', function () {
     Game.setMode('MENU'); UI.menu(Persist.hasSave(), Game.getScores(), Game.getFreshIndex());
   });
+  function closeConfirm(yes) {
+    if (yes) {
+      Game.quitToMenu();
+      UI.menu(Persist.hasSave(), Game.getScores(), Game.getFreshIndex());
+    } else {
+      Game.cancelQuit();
+      UI.hideAll();
+    }
+  }
+  Game.setConfirmHandler(closeConfirm);
+
   document.getElementById('btnQuit').addEventListener('click', function () {
-    Game.quitToMenu();
-    UI.menu(Persist.hasSave(), Game.getScores(), Game.getFreshIndex());
+    if (Game.askQuit()) UI.showOverlay('confirm');
   });
+  document.getElementById('btnConfirmYes').addEventListener('click', function () { closeConfirm(true); });
+  document.getElementById('btnConfirmNo').addEventListener('click', function () { closeConfirm(false); });
   document.getElementById('btnPause').addEventListener('click', function () {
     if (Game.getMode() === 'PLAY') Game.setMode('PAUSED');
     else if (Game.getMode() === 'PAUSED') Game.setMode('PLAY');
@@ -3690,6 +4014,7 @@ if (QUERY.debug || QUERY.selftest) {
     QUERY: QUERY, CONFIG: CONFIG, RNG: RNG, Bus: Bus, Settings: Settings, MathTasks: MathTasks,
     TaskOutcome: TaskOutcome, Network: Network, Sim: Sim, Loop: Loop,
     Renderer2D: Renderer2D, Persist: Persist, Stats: Stats, Scores: Scores, I18N: I18N, SelfTest: SelfTest,
+    TESTING: TESTING,
     Game: Game, MAX_TRAIN_LEN: MAX_TRAIN_LEN
   };
 }
