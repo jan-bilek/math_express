@@ -63,9 +63,14 @@
   .dual input[type=range]::-moz-range-thumb { pointer-events: auto;
     width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
     border: 2px solid #06202e; cursor: pointer; }
+  select { font: inherit; color: var(--ink); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    min-height: 44px; cursor: pointer; }
   input.num { width: 68px; font: inherit; color: var(--ink); background: var(--panel2);
     border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; text-align: right; }
   .dash { color: var(--muted); }
+  .opBlock { border-left: 2px solid var(--line); padding-left: 14px; margin: 14px 0; }
+  .opBlock h4 { margin: 0 0 4px; font-size: 14px; color: var(--accent); font-weight: 600; }
   input[type=color] { width: 46px; height: 34px; padding: 0; border: 1px solid var(--line);
     background: none; border-radius: 6px; }
   .val { min-width: 74px; text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
@@ -124,22 +129,9 @@
 <div class="overlay" id="ovSettings"><div class="card">
   <h2 data-i18n="set.title"></h2>
   <div class="row"><label data-i18n="set.presets"></label>
-    <button data-preset="0" data-i18n="set.preset0"></button>
-    <button data-preset="1" data-i18n="set.preset1"></button>
-    <button data-preset="2" data-i18n="set.preset2"></button></div>
+    <select id="setPreset"></select></div>
   <div class="row"><label data-i18n="set.ops"></label><span class="ops" id="setOps"></span></div>
-  <div class="row"><label data-i18n="set.numA"></label>
-    <span class="dual"><span class="rail"></span><span class="fill" id="fillA"></span>
-      <input type="range" id="setAMin" min="0" max="999"><input type="range" id="setAMax" min="0" max="999"></span>
-    <input type="number" class="num" id="numAMin" min="0" max="999">
-    <span class="dash">–</span>
-    <input type="number" class="num" id="numAMax" min="0" max="999"></div>
-  <div class="row"><label data-i18n="set.numB"></label>
-    <span class="dual"><span class="rail"></span><span class="fill" id="fillB"></span>
-      <input type="range" id="setBMin" min="0" max="999"><input type="range" id="setBMax" min="0" max="999"></span>
-    <input type="number" class="num" id="numBMin" min="0" max="999">
-    <span class="dash">–</span>
-    <input type="number" class="num" id="numBMax" min="0" max="999"></div>
+  <div id="setRanges"></div>
   <div class="row"><label data-i18n="set.negative"></label><input type="checkbox" id="setNeg"></div>
   <div class="row"><label data-i18n="set.rareZero"></label><input type="checkbox" id="setRareZero"></div>
   <div class="row"><label data-i18n="set.taskTime"></label>
@@ -298,6 +290,9 @@ var CONFIG = (function () {
     GEN_ATTEMPTS: 200,
     BUILD_ITERATIONS: 60, BUILD_EXTRA_LINKS: 6,
     MIN_LINKS_PER_PAIR: 2,
+    /* Nejvýše dvě spojky téhož směru za sebou mezi touž dvojicí tratí.
+       Tři a víc vytvářejí schodiště, ze kterého se nedá vrátit. */
+    MAX_SAME_DIR_RUN: 2,
     MIN_ROUTES_CORNER: 2,
 
     SPEEDS: [0.30 * U, 0.40 * U, 0.55 * U, 0.70 * U, 0.90 * U],
@@ -312,6 +307,11 @@ var CONFIG = (function () {
     SPAWN_START_MIN: 12, SPAWN_START_MAX: 22,
     SPAWN_MIN: 5, SPAWN_MAX: 12,
     SPAWN_RAMP_DELIVERIES: 40,
+
+    /* Když je kolejiště vyřešené — vlaky mají správně přehozené výhybky
+       a blíží se do cíle — nemá smysl čekat. Odpočet do dalšího vlaku
+       běží až (1 + READY_BOOST)× rychleji. */
+    READY_BOOST: 2,
     ACTIVE_START: 2, ACTIVE_PER_DELIVERIES: 15,
     MAX_TRAINS_PER_COLOR: 2,
     MAX_ACTIVE_TRAINS: 5, PROTECT_EXTRA: 2 * U,
@@ -334,8 +334,13 @@ var CONFIG = (function () {
     LONG_CARS: 20, LONG_LOCOS: 2, LONG_CHANCE: 0.02,
 
     /* Jak daleko za střed nádraží vůz dojede, než zmizí. Čistě vizuální —
-       na kolejích vlak končí už u nádraží, dál je jen vidět. */
-    SINK_DEPTH: 0.35,
+       na kolejích vlak končí už u nádraží, dál je jen vidět. Musí být
+       tak hluboko, aby vůz stihl celý zajet za clonu. */
+    SINK_DEPTH: 0.6,
+    /* Clona za koncem trasy: plocha v barvě pozadí, za kterou vozy zajíždějí.
+       Začíná na vnější hraně nástupiště a je jen o kousek širší než vůz —
+       širší clona by zasahovala do sousedních nádraží. */
+    CURTAIN_LEN: 2.5, CURTAIN_PAD_PX: 1,
     LONG_MIN_MAXCARS: 3, LONG_ACTIVE_CAP: 3,
 
     /* Rozvržení nástaveb v místních souřadnicích vozu (podíly délky a šířky). */
@@ -353,6 +358,11 @@ var CONFIG = (function () {
     SHRINK_STEP_DEFAULT: 0.5, SHRINK_FLOOR_DEFAULT: 6, SHRINK_EVERY: 10,
     SHRINK_STEP_MIN: 0.1, SHRINK_STEP_MAX: 2,
     INPUT_MAX_LEN: 7,
+    /* Horní mez rozsahů. Sčítání se ve vyšších ročnících učí do deseti tisíc,
+       zatímco činitelé u násobení zůstávají malí — proto má každá operace
+       vlastní rozsah. */
+    NUM_MAX: 9999,
+    OPS: ['+', '-', '*', '/'],
     ZERO_KEEP_CHANCE: 0.5,
 
     PLAN_DT: 0.25, PLAN_HORIZON: 90, PLAN_MAX_STATES: 5000,
@@ -396,6 +406,9 @@ var CONFIG = (function () {
      * a přísnější práh odsouval značku zbytečně daleko od své výhybky.
      */
     NO_ENTRY_CLEAR: 0.095, MARK_STEPS: 64, MARK_MAX_FRACTION: 0.85, MARK_MARGIN: 1.04,
+    /* Pás od značky k výhybce: jemné spojení, aby bylo zřejmé, ke které
+       výhybce zákaz patří. U značky má plnou sytost, u uzlu mizí. */
+    BAND_W: 0.03, BAND_ALPHA: 0.75,
     BALLAST_W: 0.085, GAUGE: 0.03, SLEEPER_PX: 13, SLEEPER_OVERHANG: 1.8,
     COL_BALLAST: '#39414c', COL_RAIL: '#93a1b1', COL_SLEEPER: '#5b6675',
     COL_MARK: '#dce7f2', COL_MARK_DIM: '#6b7787',
@@ -475,9 +488,11 @@ var I18N = (function () {
       "menu.settings": "Nastavení", "menu.help": "Nápověda",
       "menu.scores": "Nejlepší výsledky", "menu.language": "Jazyk",
 
-      "set.title": "Nastavení", "set.presets": "Obtížnost",
-      "set.preset0": "Začátečník", "set.preset1": "Školák", "set.preset2": "Expert",
+      "set.title": "Nastavení", "set.presets": "Podle ročníku",
+      "set.grade1": "1. třída", "set.grade2": "2. třída", "set.grade3": "3. třída",
+      "set.grade4": "4. třída", "set.grade5": "5. třída", "set.custom": "Vlastní",
       "set.ops": "Operace", "set.numA": "První číslo", "set.numB": "Druhé číslo",
+      "set.ranges": "Rozsahy čísel",
       "set.negative": "Záporné výsledky", "set.rareZero": "Méně nul v příkladech",
       "set.taskTime": "Čas na příklad", "set.shrink": "Zkracovat čas",
       "set.shrinkStep": "— o kolik za {n} příkladů", "set.shrinkFloor": "— nejméně",
@@ -490,6 +505,7 @@ var I18N = (function () {
 
       "err.no-operations": "Vyber alespoň jednu operaci.",
       "err.range-inverted": "Rozsah má prohozené meze.",
+      "err.range-out-of-bounds": "Rozsah je mimo povolené meze.",
       "err.no-valid-task": "V tomto rozsahu nelze vytvořit žádný příklad. Uprav rozsahy nebo operace.",
       "err.cols-out-of-range": "Šířka kolejiště je mimo rozsah.",
       "err.task-time-out-of-range": "Čas na příklad je mimo rozsah.",
@@ -544,9 +560,11 @@ var I18N = (function () {
       "menu.settings": "Settings", "menu.help": "How to play",
       "menu.scores": "Best scores", "menu.language": "Language",
 
-      "set.title": "Settings", "set.presets": "Difficulty",
-      "set.preset0": "Beginner", "set.preset1": "Pupil", "set.preset2": "Expert",
+      "set.title": "Settings", "set.presets": "By school year",
+      "set.grade1": "Year 1", "set.grade2": "Year 2", "set.grade3": "Year 3",
+      "set.grade4": "Year 4", "set.grade5": "Year 5", "set.custom": "Custom",
       "set.ops": "Operations", "set.numA": "First number", "set.numB": "Second number",
+      "set.ranges": "Number ranges",
       "set.negative": "Negative results", "set.rareZero": "Fewer zeros in sums",
       "set.taskTime": "Time per sum", "set.shrink": "Shorten the time",
       "set.shrinkStep": "— by how much per {n} sums", "set.shrinkFloor": "— never below",
@@ -559,6 +577,7 @@ var I18N = (function () {
 
       "err.no-operations": "Pick at least one operation.",
       "err.range-inverted": "The range has its ends swapped.",
+      "err.range-out-of-bounds": "The range is outside the allowed limits.",
       "err.no-valid-task": "No sum can be made in this range. Adjust the ranges or the operations.",
       "err.cols-out-of-range": "Layout width is out of range.",
       "err.task-time-out-of-range": "Time per sum is out of range.",
@@ -613,9 +632,11 @@ var I18N = (function () {
       "menu.settings": "Definições", "menu.help": "Como se joga",
       "menu.scores": "Melhores resultados", "menu.language": "Idioma",
 
-      "set.title": "Definições", "set.presets": "Dificuldade",
-      "set.preset0": "Principiante", "set.preset1": "Aluno", "set.preset2": "Perito",
+      "set.title": "Definições", "set.presets": "Por ano escolar",
+      "set.grade1": "1.º ano", "set.grade2": "2.º ano", "set.grade3": "3.º ano",
+      "set.grade4": "4.º ano", "set.grade5": "5.º ano", "set.custom": "Personalizado",
       "set.ops": "Operações", "set.numA": "Primeiro número", "set.numB": "Segundo número",
+      "set.ranges": "Intervalos dos números",
       "set.negative": "Resultados negativos", "set.rareZero": "Menos zeros nas contas",
       "set.taskTime": "Tempo por conta", "set.shrink": "Encurtar o tempo",
       "set.shrinkStep": "— quanto por cada {n} contas", "set.shrinkFloor": "— nunca abaixo de",
@@ -628,6 +649,7 @@ var I18N = (function () {
 
       "err.no-operations": "Escolhe pelo menos uma operação.",
       "err.range-inverted": "O intervalo tem os limites trocados.",
+      "err.range-out-of-bounds": "O intervalo está fora dos limites permitidos.",
       "err.no-valid-task": "Não é possível criar nenhuma conta neste intervalo. Ajusta os intervalos ou as operações.",
       "err.cols-out-of-range": "A largura da linha está fora do intervalo.",
       "err.task-time-out-of-range": "O tempo por conta está fora do intervalo.",
@@ -757,10 +779,19 @@ var I18N = (function () {
 
 /* ---------------------------------------------------------------- Settings */
 var Settings = (function () {
+  function range(aMin, aMax, bMin, bMax) {
+    return { aMin: aMin, aMax: aMax, bMin: bMin, bMax: bMax };
+  }
+
   function defaults() {
     return {
       ops: ['+'],
-      aMin: 0, aMax: 10, bMin: 0, bMax: 10,
+      ranges: {
+        '+': range(0, 10, 0, 10),
+        '-': range(0, 10, 0, 10),
+        '*': range(0, 10, 0, 10),
+        '/': range(0, 100, 1, 10)
+      },
       allowNegative: false,
       rareZero: true,
       taskTime: CONFIG.TASK_TIME_DEFAULT,
@@ -776,15 +807,89 @@ var Settings = (function () {
     };
   }
 
-  var PRESETS = [
-    { ops: ['+'], aMin: 0, aMax: 5, bMin: 0, bMax: 5, taskTime: 20, speedIndex: 0, carsPerStep: 15 },
-    { ops: ['+', '-'], aMin: 0, aMax: 20, bMin: 0, bMax: 10, taskTime: 15, speedIndex: 1 },
-    { ops: ['+', '-', '*', '/'], aMin: 0, aMax: 100, bMin: 1, bMax: 10, taskTime: 12, speedIndex: 2, carsPerStep: 6 }
-  ];
+  /*
+   * Žebříček podle dokončených ročníků. Tabulka je vedená po jazycích,
+   * aby šlo doplnit odlišnou školní konvenci bez zásahu do kódu; zatím
+   * všechny jazyky sdílejí společný žebříček.
+   */
+  /*
+   * Žebříček podle dokončených ročníků. Meze nejsou dané tím, co se v ročníku
+   * probírá, ale tím, co jde spočítat zpaměti během vyměřeného času — bez
+   * tužky a kalkulačky. Proto se u vyšších ročníků zvětšuje spíš první číslo
+   * než obě naráz: 847 + 56 je zpaměti schůdné, 847 + 596 už na hraně
+   * a 4738 + 6291 je počítání písemné.
+   *
+   * Tabulka je vedená po jazycích, aby šlo doplnit odlišnou školní konvenci
+   * bez zásahu do kódu; zatím všechny jazyky sdílejí společný žebříček.
+   */
+  var GRADES = {
+    def: [
+      /* Sčítání a odčítání do deseti. */
+      { ops: ['+', '-'],
+        ranges: { '+': range(0, 10, 0, 10), '-': range(0, 10, 0, 10) },
+        taskTime: 25, speedIndex: 0, carsPerStep: 15 },
 
-  function preset(i) {
-    var s = defaults(), p = PRESETS[i];
-    for (var k in p) s[k] = Array.isArray(p[k]) ? p[k].slice() : p[k];
+      /* Do sta, malá násobilka. Sčítance po padesáti, aby součet nepřerostl sto. */
+      { ops: ['+', '-', '*', '/'],
+        ranges: { '+': range(0, 50, 0, 50), '-': range(0, 100, 0, 100),
+                  '*': range(0, 10, 0, 10), '/': range(0, 100, 1, 10) },
+        taskTime: 22, speedIndex: 0, carsPerStep: 12 },
+
+      /* Do tisíce, ale přičítá se nejvýše stovka. Násobení dvojciferných. */
+      { ops: ['+', '-', '*', '/'],
+        ranges: { '+': range(0, 1000, 0, 100), '-': range(0, 1000, 0, 100),
+                  '*': range(0, 20, 0, 10), '/': range(0, 100, 1, 10) },
+        taskTime: 20, speedIndex: 1, carsPerStep: 10 },
+
+      /* Dvě trojciferná čísla, násobení dvojciferného jednociferným. */
+      { ops: ['+', '-', '*', '/'],
+        ranges: { '+': range(0, 1000, 0, 1000), '-': range(0, 1000, 0, 1000),
+                  '*': range(0, 100, 0, 10), '/': range(0, 1000, 1, 10) },
+        taskTime: 20, speedIndex: 1, carsPerStep: 8 },
+
+      /* Čtyřciferné plus trojciferné, násobení dvojciferných do dvaceti. */
+      { ops: ['+', '-', '*', '/'],
+        ranges: { '+': range(0, 9999, 0, 1000), '-': range(0, 9999, 0, 1000),
+                  '*': range(0, 100, 0, 20), '/': range(0, 1000, 1, 12) },
+        taskTime: 20, speedIndex: 2, carsPerStep: 6 }
+    ]
+  };
+
+  function grades(lang) { return GRADES[lang] || GRADES.def; }
+
+  /**
+   * Který ročník odpovídá danému nastavení, nebo −1 pro vlastní.
+   * Porovnávají se jen zapnuté operace — vypnuté hráč stejně nevidí.
+   */
+  function matchGrade(s, lang) {
+    var list = grades(lang), i, j, op, f;
+    var fields = ['aMin', 'aMax', 'bMin', 'bMax'];
+    for (i = 0; i < list.length; i++) {
+      var p = preset(i, lang), ok = true;
+      if (p.ops.length !== s.ops.length) continue;
+      for (j = 0; j < p.ops.length && ok; j++) if (s.ops.indexOf(p.ops[j]) < 0) ok = false;
+      if (ok && (p.taskTime !== s.taskTime || p.speedIndex !== s.speedIndex
+        || p.carsPerStep !== s.carsPerStep)) ok = false;
+      for (j = 0; j < p.ops.length && ok; j++) {
+        op = p.ops[j];
+        for (f = 0; f < fields.length && ok; f++) {
+          if (p.ranges[op][fields[f]] !== s.ranges[op][fields[f]]) ok = false;
+        }
+      }
+      if (ok) return i;
+    }
+    return -1;
+  }
+
+  function preset(i, lang) {
+    var s = defaults(), p = grades(lang)[i], k, op;
+    if (!p) return s;
+    for (k in p) {
+      if (k === 'ranges') continue;
+      s[k] = Array.isArray(p[k]) ? p[k].slice() : p[k];
+    }
+    for (op in p.ranges) s.ranges[op] = range(p.ranges[op].aMin, p.ranges[op].aMax,
+      p.ranges[op].bMin, p.ranges[op].bMax);
     return s;
   }
 
@@ -798,20 +903,47 @@ var Settings = (function () {
    * ji nezachytila, protože `undefined < min` je nepravda.
    */
   function merge(saved) {
-    var base = defaults();
+    var base = defaults(), k, op, f;
     if (!saved || typeof saved !== 'object') return base;
-    for (var k in base) {
+    for (k in base) {
+      if (k === 'ranges') continue;
       if (!Object.prototype.hasOwnProperty.call(saved, k)) continue;
       var v = saved[k], d = base[k];
       if (Array.isArray(d)) { if (Array.isArray(v)) base[k] = v.slice(); }
       else if (typeof d === typeof v) base[k] = v;
     }
+    /* Rozsahy po operacích. */
+    if (saved.ranges && typeof saved.ranges === 'object') {
+      for (op in base.ranges) {
+        var r = saved.ranges[op];
+        if (!r || typeof r !== 'object') continue;
+        for (f in base.ranges[op]) {
+          if (typeof r[f] === 'number' && isFinite(r[f])) base.ranges[op][f] = r[f];
+        }
+      }
+    }
+    /* Starší zápis měl jediný rozsah pro všechny operace; převezmeme ho
+       do každé z nich, aby hráč po aktualizaci nepřišel o nastavení. */
+    var flat = ['aMin', 'aMax', 'bMin', 'bMax'], hasFlat = false;
+    for (k = 0; k < flat.length; k++) {
+      if (typeof saved[flat[k]] === 'number' && isFinite(saved[flat[k]])) hasFlat = true;
+    }
+    if (hasFlat) {
+      for (op in base.ranges) {
+        for (k = 0; k < flat.length; k++) {
+          if (typeof saved[flat[k]] === 'number' && isFinite(saved[flat[k]])) {
+            base.ranges[op][flat[k]] = saved[flat[k]];
+          }
+        }
+      }
+    }
     return base;
   }
 
   /** Čistá validace — REQ-SET-016…018. Vrací pole kódů chyb. */
-  var NUMERIC = ['aMin', 'aMax', 'bMin', 'bMax', 'taskTime', 'shrinkStep',
+  var NUMERIC = ['taskTime', 'shrinkStep',
     'shrinkFloor', 'speedIndex', 'cols', 'carsPerStep'];
+  var RANGE_FIELDS = ['aMin', 'aMax', 'bMin', 'bMax'];
 
   function validate(s) {
     var e = [];
@@ -825,7 +957,20 @@ var Settings = (function () {
       }
     }
     if (e.length && e[e.length - 1].indexOf('not-a-number') === 0) return e;
-    if (s.aMin > s.aMax || s.bMin > s.bMax) e.push('range-inverted');
+    if (!s.ranges || typeof s.ranges !== 'object') { e.push('palette-size'); return e; }
+    for (var op in s.ranges) {
+      var r = s.ranges[op];
+      for (var f = 0; f < RANGE_FIELDS.length; f++) {
+        if (typeof r[RANGE_FIELDS[f]] !== 'number' || !isFinite(r[RANGE_FIELDS[f]])) {
+          e.push('not-a-number:' + op + RANGE_FIELDS[f]);
+          return e;
+        }
+      }
+      if (r.aMin > r.aMax || r.bMin > r.bMax) e.push('range-inverted');
+      if (r.aMin < 0 || r.aMax > CONFIG.NUM_MAX || r.bMin < 0 || r.bMax > CONFIG.NUM_MAX) {
+        e.push('range-out-of-bounds');
+      }
+    }
     if (s.cols < CONFIG.COLS_MIN || s.cols > CONFIG.COLS_MAX) e.push('cols-out-of-range');
     if (s.taskTime < CONFIG.TASK_TIME_MIN || s.taskTime > CONFIG.TASK_TIME_MAX) e.push('task-time-out-of-range');
     if (s.carsPerStep < CONFIG.CARS_STEP_MIN || s.carsPerStep > CONFIG.CARS_STEP_MAX) {
@@ -875,17 +1020,23 @@ var Settings = (function () {
 
   return {
     defaults: defaults, clone: clone, merge: merge, validate: validate, warnings: warnings,
-    deltaE: deltaE, preset: preset, PRESETS: PRESETS
+    deltaE: deltaE, preset: preset, grades: grades, matchGrade: matchGrade
   };
 })();
 
 /* --------------------------------------------------------------- MathTasks */
 var MathTasks = (function () {
 
+  /** Rozsah čísel pro danou operaci. Každá má vlastní. */
+  function rangeFor(s, op) {
+    return (s && s.ranges && s.ranges[op]) || { aMin: 0, aMax: 0, bMin: 0, bMax: 0 };
+  }
+
   function divisorRange(s) {
-    var lo = Math.max(1, s.bMin), hi = s.bMax, out = [];
+    var r = rangeFor(s, '/');
+    var lo = Math.max(1, r.bMin), hi = r.bMax, out = [];
     for (var b = lo; b <= hi; b++) {
-      var qlo = Math.ceil(s.aMin / b), qhi = Math.floor(s.aMax / b);
+      var qlo = Math.ceil(r.aMin / b), qhi = Math.floor(r.aMax / b);
       if (qhi >= qlo) out.push(b);
     }
     return out;
@@ -895,11 +1046,12 @@ var MathTasks = (function () {
   function usableOps(s) {
     if (!s || !Array.isArray(s.ops)) return [];
     return s.ops.filter(function (op) {
-      if (s.aMin > s.aMax || s.bMin > s.bMax) return false;
+      var r = rangeFor(s, op);
+      if (r.aMin > r.aMax || r.bMin > r.bMax) return false;
       if (op === '/') return divisorRange(s).length > 0;
       /* Odčítání bez záporných výsledků potřebuje a ≥ b; prosté prohození
          operandů by vyneslo b mimo jeho rozsah (REQ-MTH-005 vs. REQ-MTH-006). */
-      if (op === '-' && !s.allowNegative) return Math.max(s.aMin, s.bMin) <= s.aMax;
+      if (op === '-' && !s.allowNegative) return Math.max(r.aMin, r.bMin) <= r.aMax;
       return true;
     });
   }
@@ -918,26 +1070,26 @@ var MathTasks = (function () {
   }
 
   function make(rng, op, s) {
-    var a, b, r;
+    var a, b, r, rg = rangeFor(s, op);
     if (op === '/') {
       var ds = divisorRange(s);
       if (!ds.length) return null;
       b = ds[rng.int(0, ds.length - 1)];
-      var qlo = Math.ceil(s.aMin / b), qhi = Math.floor(s.aMax / b);
+      var qlo = Math.ceil(rg.aMin / b), qhi = Math.floor(rg.aMax / b);
       r = pickOperand(rng, qlo, qhi, s);
       a = b * r;
       return { op: op, a: a, b: b, result: r };
     }
     if (op === '-' && !s.allowNegative) {
       /* Volíme rovnou tak, aby a ≥ b a obě čísla zůstala ve svých rozsazích. */
-      var lo = Math.max(s.aMin, s.bMin);
-      if (lo > s.aMax) return null;
-      a = pickOperand(rng, lo, s.aMax, s);
-      b = pickOperand(rng, s.bMin, Math.min(s.bMax, a), s);
+      var lo = Math.max(rg.aMin, rg.bMin);
+      if (lo > rg.aMax) return null;
+      a = pickOperand(rng, lo, rg.aMax, s);
+      b = pickOperand(rng, rg.bMin, Math.min(rg.bMax, a), s);
       return { op: op, a: a, b: b, result: a - b };
     }
-    a = pickOperand(rng, s.aMin, s.aMax, s);
-    b = pickOperand(rng, s.bMin, s.bMax, s);
+    a = pickOperand(rng, rg.aMin, rg.aMax, s);
+    b = pickOperand(rng, rg.bMin, rg.bMax, s);
     if (op === '+') r = a + b;
     else if (op === '*') r = a * b;
     else r = a - b;
@@ -959,8 +1111,9 @@ var MathTasks = (function () {
     /* Krajní případ: rozsah je tak úzký, že náhoda opakovaně padla na totéž.
        Vynutíme odlišnost posunem operandu uvnitř rozsahu. */
     for (var op = 0; op < ops.length; op++) {
-      for (var av = s.aMin; av <= s.aMax; av++) {
-        for (var bv = s.bMin; bv <= s.bMax; bv++) {
+      var fr = rangeFor(s, ops[op]);
+      for (var av = fr.aMin; av <= fr.aMax; av++) {
+        for (var bv = fr.bMin; bv <= fr.bMax; bv++) {
           var cand = build(ops[op], av, bv, s);
           if (cand && !same(cand, last)) return cand;
         }
@@ -993,7 +1146,7 @@ var MathTasks = (function () {
   }
 
   return {
-    generate: generate, check: check, usableOps: usableOps,
+    generate: generate, check: check, usableOps: usableOps, rangeFor: rangeFor,
     divisorRange: divisorRange, text: text, build: build
   };
 })();
@@ -1081,12 +1234,13 @@ var Network = (function () {
 
     return {
       cols: cols, rows: R, nodes: nodes, edges: edges, stations: stations,
-      addEdge: addEdge, switchCols: [[], [], [], [], []], linksPerCol: {}, linkRows: {}
+      addEdge: addEdge, switchCols: [[], [], [], [], []], linksPerCol: {}, linkRows: {},
+      pairLinks: {}
     };
   }
 
   /** Je umístění spojky (r1,c)→(r2,c+1) přípustné? */
-  function canPlace(net, r1, r2, c) {
+  function canPlace(net, r1, r2, c, strict) {
     var cols = net.cols;
     if (c < 0 || c > cols - 2) return false;
     if (Math.abs(r1 - r2) !== 1) return false;
@@ -1102,6 +1256,7 @@ var Network = (function () {
     for (i = 0; i < net.switchCols[r2].length; i++) {
       if (Math.abs(net.switchCols[r2][i] - (c + 1)) < CONFIG.MIN_SWITCH_GAP) return false;
     }
+    if (strict && wouldRun(net, r1, r2, c)) return false;
     return true;
   }
 
@@ -1116,14 +1271,35 @@ var Network = (function () {
     net.linksPerCol[c] = (net.linksPerCol[c] || 0) + 1;
     net.linkRows[c] = net.linkRows[c] || {};
     net.linkRows[c][r1] = net.linkRows[c][r2] = true;
+    var key = Math.min(r1, r2);
+    (net.pairLinks[key] = net.pairLinks[key] || []).push({ c: c, down: r2 > r1 });
   }
 
-  function allPlacements(net) {
+  /** Nejdelší řada spojek téhož směru mezi dvojicí tratí, seřazeno po sloupcích. */
+  function longestRun(list) {
+    var sorted = list.slice().sort(function (a, b) { return a.c - b.c; });
+    var best = 0, run = 0, prev = null;
+    for (var i = 0; i < sorted.length; i++) {
+      run = (prev !== null && sorted[i].down === prev) ? run + 1 : 1;
+      prev = sorted[i].down;
+      if (run > best) best = run;
+    }
+    return best;
+  }
+
+  /** Vznikla by přidáním spojky příliš dlouhá řada téhož směru? */
+  function wouldRun(net, r1, r2, c) {
+    var key = Math.min(r1, r2);
+    var list = (net.pairLinks[key] || []).concat([{ c: c, down: r2 > r1 }]);
+    return longestRun(list) > CONFIG.MAX_SAME_DIR_RUN;
+  }
+
+  function allPlacements(net, strict) {
     var out = [], R = CONFIG.ROWS;
     for (var c = 0; c <= net.cols - 2; c++) {
       for (var r = 0; r < R; r++) {
-        if (r + 1 < R && canPlace(net, r, r + 1, c)) out.push([r, r + 1, c]);
-        if (r - 1 >= 0 && canPlace(net, r, r - 1, c)) out.push([r, r - 1, c]);
+        if (r + 1 < R && canPlace(net, r, r + 1, c, strict)) out.push([r, r + 1, c]);
+        if (r - 1 >= 0 && canPlace(net, r, r - 1, c, strict)) out.push([r, r - 1, c]);
       }
     }
     return out;
@@ -1159,9 +1335,18 @@ var Network = (function () {
   function cascade(net, fromRow, step, startCol) {
     var r = fromRow, c = startCol;
     while (r !== (step > 0 ? CONFIG.ROWS - 1 : 0)) {
-      var placed = false;
-      for (var cc = c; cc <= net.cols - 2; cc++) {
-        if (canPlace(net, r, r + step, cc)) { place(net, r, r + step, cc); c = cc + 1; placed = true; break; }
+      var placed = false, cc;
+      /* Průjezdnost má přednost před střídáním směrů: nejdřív hledáme místo,
+         které splní obojí, a teprve když žádné není, slevíme ze střídání. */
+      for (cc = c; cc <= net.cols - 2 && !placed; cc++) {
+        if (canPlace(net, r, r + step, cc, true)) {
+          place(net, r, r + step, cc); c = cc + 1; placed = true;
+        }
+      }
+      for (cc = c; cc <= net.cols - 2 && !placed; cc++) {
+        if (canPlace(net, r, r + step, cc)) {
+          place(net, r, r + step, cc); c = cc + 1; placed = true;
+        }
       }
       if (!placed) return false;
       r += step;
@@ -1201,7 +1386,7 @@ var Network = (function () {
 
     /* Doplňkové spojky: sytí hladové tratě a rozšiřují nabídku tras. */
     for (var iter = 0; iter < CONFIG.BUILD_ITERATIONS; iter++) {
-      var cand = allPlacements(net);
+      var cand = allPlacements(net, true);
       if (!cand.length) break;
       if (starvation(net) === 0 && iter >= CONFIG.BUILD_EXTRA_LINKS) break;
       rng.shuffle(cand);
@@ -1360,6 +1545,20 @@ var Network = (function () {
       }
     }
 
+    /* Střídání směrů: tři a víc spojek téhož směru za sebou mezi touž
+       dvojicí tratí dělá schodiště, ze kterého se nedá vrátit. */
+    var seq = {};
+    for (i = 0; i < net.edges.length; i++) {
+      var se = net.edges[i];
+      if (se.kind !== 'link') continue;
+      var sa = net.nodes[se.a], sb = net.nodes[se.b];
+      var skey = Math.min(sa.r, sb.r);
+      (seq[skey] = seq[skey] || []).push({ c: sa.c, down: sb.r > sa.r });
+    }
+    for (var sk in seq) {
+      if (longestRun(seq[sk]) > CONFIG.MAX_SAME_DIR_RUN) { e.push('link-run'); break; }
+    }
+
     if (total < 3 * R) e.push('switch-count');
     /*
      * Rozestup výhybek na trati se hlídá jen topologicky (MIN_SWITCH_GAP),
@@ -1412,14 +1611,22 @@ var Network = (function () {
     return build(rng, cols);
   }
 
+  /**
+   * Pořadí důležitosti invariantů: průjezdnost a hustota jsou nepodkročitelné,
+   * střídání směrů je preference. Když se nepodaří splnit všechno, vezme se
+   * síť, které chybí právě jen střídání — pořád je hratelná.
+   */
   function generate(rng, cols) {
     cols = cols || CONFIG.COLS_DEFAULT;
     if (cols < CONFIG.COLS_MIN || cols > CONFIG.COLS_MAX) return null;
+    var relaxed = null;
     for (var i = 0; i < CONFIG.GEN_ATTEMPTS; i++) {
       var net = build(rng, cols);
-      if (validate(net).length === 0) return net;
+      var errs = validate(net);
+      if (errs.length === 0) return net;
+      if (!relaxed && errs.length === 1 && errs[0] === 'link-run') relaxed = net;
     }
-    return fallback(cols);
+    return relaxed || fallback(cols);
   }
 
   function stationsOf(net, side) {
@@ -1429,7 +1636,8 @@ var Network = (function () {
   return {
     generate: generate, build: build, validate: validate, traverse: traverse,
     reachable: reachable, routeExists: routeExists, countRoutes: countRoutes,
-    otherEnd: otherEnd, stationsOf: stationsOf, idx: idx, fallback: fallback
+    otherEnd: otherEnd, stationsOf: stationsOf, idx: idx, fallback: fallback,
+    longestRun: longestRun
   };
 })();
 
@@ -1838,6 +2046,46 @@ var Sim = (function () {
     };
   }
 
+  /**
+   * Kam vlak dojede, pokud se výhybky nezmění, a kolik mu do tam zbývá.
+   * Čistý dotaz nad současným stavem — nic nemění a nespotřebuje náhodu.
+   */
+  function routeAhead(state, t) {
+    var net = state.net, edgeId = t.headEdge, dir = t.dir, guard = 0;
+    var remaining = (dir > 0 ? (1 - t.headT) : t.headT) * net.edges[edgeId].len;
+    while (guard++ < 64) {
+      var e = net.edges[edgeId];
+      var nodeId = dir > 0 ? e.b : e.a;
+      var node = net.nodes[nodeId];
+      if (node.stationId !== null) {
+        return { ok: node.stationId === t.destStationId, remaining: remaining };
+      }
+      var res = Network.traverse(net, nodeId, edgeId, dir);
+      if (res.derail || res.exitEdge === null) return { ok: false, remaining: remaining };
+      edgeId = res.exitEdge;
+      remaining += net.edges[edgeId].len;
+    }
+    return { ok: false, remaining: remaining };
+  }
+
+  /**
+   * Nakolik je kolejiště vyřešené: 0 = nic není dojednané, 1 = všechny vlaky
+   * mají správně přehozené výhybky a jsou u cíle. Vlak s chybnou trasou
+   * nepřispívá vůbec — hráč u něj má co dělat.
+   */
+  function readiness(state) {
+    if (!state.trains.length) return 1;
+    var full = state.net.cols * CONFIG.LEN_STRAIGHT, sum = 0;
+    for (var i = 0; i < state.trains.length; i++) {
+      var t = state.trains[i];
+      if (t.arriving) { sum += 1; continue; }
+      var r = routeAhead(state, t);
+      if (!r.ok) continue;
+      sum += Math.max(0, Math.min(1, 1 - r.remaining / full));
+    }
+    return sum / state.trains.length;
+  }
+
   function reschedule(state) {
     var r = spawnRange(state);
     state.spawnTimer = r.min + state._worldRng.next() * (r.max - r.min);
@@ -2031,7 +2279,9 @@ var Sim = (function () {
       return;
     }
     if (state.trains.length === 0) { if (!announce(state)) reschedule(state); return; }
-    state.spawnTimer -= dt;
+    /* Vyřešené kolejiště odpočet zrychluje, aby nevznikaly hluché pasáže.
+       Po vypravení se odpočet losuje znovu z běžného rozsahu. */
+    state.spawnTimer -= dt * (1 + CONFIG.READY_BOOST * readiness(state));
     if (state.spawnTimer <= 0) { if (!announce(state)) reschedule(state); }
   }
 
@@ -2259,6 +2509,7 @@ var Sim = (function () {
     zoneEdges: zoneEdges, isSolvable: isSolvable, predict: predict, spawn: spawn,
     announce: announce, materialize: materialize, nodeOccupied: nodeOccupied,
     pickCars: pickCars, pickCarTypes: pickCarTypes, trainLen: trainLen, forceLong: forceLong,
+    readiness: readiness, routeAhead: routeAhead,
     hasLong: hasLong, canSpawnLong: canSpawnLong,
     activeCap: activeCap, spawnRange: spawnRange
   };
@@ -2554,6 +2805,54 @@ var Renderer2D = (function () {
     }
   }
 
+  /**
+   * Clona za koncem každé trasy. Je vyplněná týmž přechodem jako pozadí,
+   * takže na scéně není vidět — vozy za ni zajíždějí a plynule mizí,
+   * místo aby zhasly na místě.
+   *
+   * Rohy se počítají ručně a kreslí se bez otáčení plátna: přechod pozadí
+   * je svislý v souřadnicích plátna, a kdyby se otočil spolu s obdélníkem,
+   * vznikl by na okraji clony šev.
+   */
+  function drawCurtains(net) {
+    if (!bg) return;
+    var len = scale * CONFIG.CURTAIN_LEN;
+    ctx.save();
+    ctx.fillStyle = bg;
+    for (var i = 0; i < net.stations.length; i++) {
+      var c = curtainStart(net, net.stations[i]);
+      var dx = c.dx, dy = c.dy, half = c.half;
+      var nx = -dy, ny = dx;
+      var ox = c.x, oy = c.y;
+      ctx.beginPath();
+      ctx.moveTo(ox + nx * half, oy + ny * half);
+      ctx.lineTo(ox + dx * len + nx * half, oy + dy * len + ny * half);
+      ctx.lineTo(ox + dx * len - nx * half, oy + dy * len - ny * half);
+      ctx.lineTo(ox - nx * half, oy - ny * half);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /**
+   * Začátek clony: vnější hrana nástupiště. Odvozuje se z rozměru nádraží,
+   * aby se s ním nemohla rozejít. Šířka je šířka vozu a k tomu pixel
+   * přesahu na každou stranu.
+   */
+  function curtainStart(net, station) {
+    var u = railDir(), p = nodePos(net, station.nodeId);
+    var out = station.side === 'L' ? -1 : 1;
+    var reach = scale * CONFIG.STATION.plat.w / 2;
+    return {
+      x: p.x + u.x * out * reach,
+      y: p.y + u.y * out * reach,
+      dx: u.x * out, dy: u.y * out,
+      half: scale * CONFIG.CAR_WIDTH / 2 + CONFIG.CURTAIN_PAD_PX,
+      len: scale * CONFIG.CURTAIN_LEN
+    };
+  }
+
   function drawStations(net) {
     var u = railDir(), ang = Math.atan2(u.y, u.x), S = CONFIG.STATION;
     for (var i = 0; i < net.stations.length; i++) {
@@ -2666,8 +2965,12 @@ var Renderer2D = (function () {
       f = (k / CONFIG.MARK_STEPS) * CONFIG.MARK_MAX_FRACTION;
       p = edgePoint(net, closed, dc.at + (dc.to - dc.at) * f);
       gap = distToPoly(p.x, p.y, ref);
-      if (gap >= clear) { markCache[key] = p; return p; }
-      if (gap > bestGap) { bestGap = gap; best = p; }
+      if (gap >= clear) {
+        p.t = dc.at + (dc.to - dc.at) * f;
+        markCache[key] = p;
+        return p;
+      }
+      if (gap > bestGap) { bestGap = gap; best = p; best.t = dc.at + (dc.to - dc.at) * f; }
     }
     /*
      * Nouzově bereme místo s největším odstupem. Značka musí zůstat na ose
@@ -2717,6 +3020,7 @@ var Renderer2D = (function () {
          se po ní někdo blíží. */
       var mark = noEntrySpot(net, n);
       var heat = approachHeat(state, n.id, ina);
+      drawBand(net, n, ina, mark, heat);
       noEntry(mark.x, mark.y, Math.max(5, scale * CONFIG.NO_ENTRY_R), heat);
 
       /* Drobný bod uzlu označuje místo kliknutí; zámek jen když vlak zakrývá. */
@@ -2735,6 +3039,22 @@ var Renderer2D = (function () {
         ctx.beginPath(); ctx.arc(p.x, p.y - lr * 0.1, lr * 0.25, Math.PI, 0); ctx.stroke();
       }
     }
+  }
+
+  /**
+   * Pás od značky k uzlu výhybky. Vede po oblouku zavřené větve a u uzlu
+   * se ztrácí — spojuje zákaz s výhybkou, aniž by ji přehlušil.
+   */
+  function drawBand(net, n, edgeId, mark, heat) {
+    if (mark.t === undefined) return;
+    var at = fromNode(net, edgeId, n.id).at;
+    var node = nodePos(net, n.id);
+    var g = ctx.createLinearGradient(mark.x, mark.y, node.x, node.y);
+    var col = mixHex(CONFIG.NO_ENTRY_CALM, CONFIG.NO_ENTRY_HOT, heat);
+    g.addColorStop(0, rgba(col, CONFIG.BAND_ALPHA));
+    g.addColorStop(1, rgba(col, 0));
+    strokePoly(edgePath(net, edgeId, mark.t, at), g,
+      Math.max(1.5, scale * CONFIG.BAND_W), 'butt');
   }
 
   /**
@@ -2803,7 +3123,7 @@ var Renderer2D = (function () {
      ho nemutuje — mění se jen privátní pole tohoto modulu. */
   /* Odjezd vlaku ohlásí nádraží trojím plynulým zesvětlením. Renderer si
      na to drží vlastní časovače a bere je z Busu — herní stav o nich neví. */
-  var lastNet = null;
+  var lastNet = null, bg = null;
   var pulses = {};
   Bus.on('station:announced', function (p) {
     if (p && p.stationId !== undefined) pulses[p.stationId] = p.seconds || CONFIG.ANNOUNCE_SECONDS;
@@ -3011,6 +3331,14 @@ var Renderer2D = (function () {
     }).join('');
   }
 
+  /** Odstín s danou průhledností. */
+  function rgba(hex, a) {
+    var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+    if (!m) return hex;
+    return 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ','
+      + parseInt(m[3], 16) + ',' + a + ')';
+  }
+
   function shade(hex) { return mix(hex, 0.38, 0); }
   function tint(hex) { return mix(hex, 0.42, 255); }
 
@@ -3045,6 +3373,7 @@ var Renderer2D = (function () {
     var g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, '#131b25'); g.addColorStop(1, '#0d1219');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    bg = g;
 
     var net = state.net;
     drawTrack(net);
@@ -3055,6 +3384,7 @@ var Renderer2D = (function () {
     });
     for (var i = 0; i < sorted.length; i++) drawTrain(state, sorted[i], alpha);
     drawSmoke();
+    drawCurtains(net);
 
     if (state.inputBlockTimer > 0) {
       ctx.save();
@@ -3101,7 +3431,7 @@ var Renderer2D = (function () {
   return {
     init: init, resize: resize, draw: draw, pick: pick, dispose: dispose,
     setPalette: setPalette, setPaused: setPaused, gridToScreen: gridToScreen,
-    edgePoint: edgePoint, noEntrySpot: noEntrySpot
+    edgePoint: edgePoint, noEntrySpot: noEntrySpot, curtainStart: curtainStart
   };
 })();
 
@@ -3332,6 +3662,8 @@ var UI = (function () {
     el.lives = $('hudLives'); el.score = $('hudScore'); el.msg = $('hudMsg');
     el.delivered = $('hudDelivered'); el.pause = $('btnPause'); el.quit = $('btnQuit');
     el.ops = $('setOps'); el.palette = $('setPalette'); el.lang = $('menuLang');
+    el.ranges = $('setRanges'); el.preset = $('setPreset');
+    buildPresets();
     buildLangs();
     el.err = $('setErr'); el.warn = $('setWarn');
     buildOps(); buildPalette();
@@ -3355,7 +3687,24 @@ var UI = (function () {
         b.classList.toggle('sel', b.getAttribute('data-lang') === I18N.get());
       });
     }
-    if (draft) syncSettings();
+    if (el.preset) buildPresets();
+    if (draft) { buildRanges(); syncSettings(); }
+  }
+
+  /** Naplní rozbalovací volbu ročníků; první položka je vlastní nastavení. */
+  function buildPresets() {
+    el.preset.innerHTML = '';
+    var custom = document.createElement('option');
+    custom.value = '-1';
+    custom.textContent = I18N.t('set.custom');
+    el.preset.appendChild(custom);
+    var list = Settings.grades(I18N.get());
+    for (var i = 0; i < list.length; i++) {
+      var o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = I18N.t('set.grade' + (i + 1));
+      el.preset.appendChild(o);
+    }
   }
 
   function buildLangs() {
@@ -3371,6 +3720,78 @@ var UI = (function () {
   var onLang = null;
   function setLangHandler(fn) { onLang = fn; }
 
+  /* Rozsahy se staví za běhu, pro každou zapnutou operaci jeden blok.
+     Prvky proto nemají id — odkazy si UI drží samo. */
+  var rangeRows = [];
+
+  function dual(label, get, set) {
+    var row = document.createElement('div');
+    row.className = 'row';
+    var lab = document.createElement('label');
+    lab.textContent = label;
+    var dualBox = document.createElement('span');
+    dualBox.className = 'dual';
+    var rail = document.createElement('span'); rail.className = 'rail';
+    var fill = document.createElement('span'); fill.className = 'fill';
+    var lo = document.createElement('input'), hi = document.createElement('input');
+    var nlo = document.createElement('input'), nhi = document.createElement('input');
+    [lo, hi].forEach(function (el2) {
+      el2.type = 'range'; el2.min = 0; el2.max = CONFIG.NUM_MAX;
+    });
+    [nlo, nhi].forEach(function (el2) {
+      el2.type = 'number'; el2.className = 'num'; el2.min = 0; el2.max = CONFIG.NUM_MAX;
+    });
+    var dash = document.createElement('span'); dash.className = 'dash'; dash.textContent = '–';
+    dualBox.appendChild(rail); dualBox.appendChild(fill);
+    dualBox.appendChild(lo); dualBox.appendChild(hi);
+    row.appendChild(lab); row.appendChild(dualBox);
+    row.appendChild(nlo); row.appendChild(dash); row.appendChild(nhi);
+
+    function commit(which, value) {
+      var v = Math.max(0, Math.min(CONFIG.NUM_MAX, value));
+      var cur = get();
+      if (which === 0) { cur.lo = v; if (cur.lo > cur.hi) cur.hi = cur.lo; }
+      else { cur.hi = v; if (cur.hi < cur.lo) cur.lo = cur.hi; }
+      set(cur.lo, cur.hi);
+      syncSettings();
+    }
+    lo.addEventListener('input', function (ev) { commit(0, +ev.target.value); });
+    hi.addEventListener('input', function (ev) { commit(1, +ev.target.value); });
+    nlo.addEventListener('change', function (ev) {
+      var v = parseInt(ev.target.value, 10);
+      if (isFinite(v)) commit(0, v); else syncSettings();
+    });
+    nhi.addEventListener('change', function (ev) {
+      var v = parseInt(ev.target.value, 10);
+      if (isFinite(v)) commit(1, v); else syncSettings();
+    });
+
+    rangeRows.push({ get: get, lo: lo, hi: hi, nlo: nlo, nhi: nhi, fill: fill, label: lab, key: label });
+    return row;
+  }
+
+  /** Přestaví bloky rozsahů podle zapnutých operací. */
+  function buildRanges() {
+    var box = el.ranges;
+    box.innerHTML = '';
+    rangeRows = [];
+    CONFIG.OPS.forEach(function (op) {
+      if (draft.ops.indexOf(op) < 0) return;
+      var block = document.createElement('div');
+      block.className = 'opBlock';
+      var head = document.createElement('h4');
+      head.textContent = I18N.t('op.' + op);
+      block.appendChild(head);
+      block.appendChild(dual(I18N.t('set.numA'),
+        function () { return { lo: draft.ranges[op].aMin, hi: draft.ranges[op].aMax }; },
+        function (lo, hi) { draft.ranges[op].aMin = lo; draft.ranges[op].aMax = hi; }));
+      block.appendChild(dual(I18N.t('set.numB'),
+        function () { return { lo: draft.ranges[op].bMin, hi: draft.ranges[op].bMax }; },
+        function (lo, hi) { draft.ranges[op].bMin = lo; draft.ranges[op].bMax = hi; }));
+      box.appendChild(block);
+    });
+  }
+
   function buildOps() {
     ['+', '-', '*', '/'].forEach(function (op) {
       var b = document.createElement('button');
@@ -3378,6 +3799,7 @@ var UI = (function () {
       b.addEventListener('click', function () {
         var i = draft.ops.indexOf(op);
         if (i < 0) draft.ops.push(op); else draft.ops.splice(i, 1);
+        buildRanges();
         syncSettings();
       });
       b.setAttribute('data-op', op);
@@ -3432,6 +3854,7 @@ var UI = (function () {
     draft = Settings.clone(current);
     onSaved = saved;
     bindSettings();
+    buildRanges();
     syncSettings();
     showOverlay('settings');
   }
@@ -3441,7 +3864,6 @@ var UI = (function () {
     if (bound) return;
     bound = true;
     var num = [
-      ['setAMin', 'aMin'], ['setAMax', 'aMax'], ['setBMin', 'bMin'], ['setBMax', 'bMax'],
       ['setTime', 'taskTime'], ['setSpeed', 'speedIndex'], ['setCols', 'cols'],
       ['setCarsStep', 'carsPerStep'],
       ['setShrinkFloor', 'shrinkFloor']
@@ -3449,21 +3871,9 @@ var UI = (function () {
     num.forEach(function (p) {
       $(p[0]).addEventListener('input', function (ev) {
         draft[p[1]] = +ev.target.value;
-        clampRanges(p[1]);
         syncSettings();
       });
     });
-    /* Textová pole jsou plnohodnotnou druhou cestou k témuž údaji. */
-    [['numAMin', 'aMin'], ['numAMax', 'aMax'], ['numBMin', 'bMin'], ['numBMax', 'bMax']]
-      .forEach(function (p) {
-        $(p[0]).addEventListener('change', function (ev) {
-          var v = parseInt(ev.target.value, 10);
-          if (!isFinite(v)) { syncSettings(); return; }
-          draft[p[1]] = Math.max(0, Math.min(999, v));
-          clampRanges(p[1]);
-          syncSettings();
-        });
-      });
     $('setShrinkStep').addEventListener('input', function (ev) {
       draft.shrinkStep = (+ev.target.value) / 10; syncSettings();
     });
@@ -3471,11 +3881,12 @@ var UI = (function () {
      ['setShrink', 'shrink'], ['setSound', 'sound']].forEach(function (p) {
       $(p[0]).addEventListener('change', function (ev) { draft[p[1]] = ev.target.checked; syncSettings(); });
     });
-    Array.prototype.forEach.call(document.querySelectorAll('[data-preset]'), function (b) {
-      b.addEventListener('click', function () {
-        draft = Settings.preset(+b.getAttribute('data-preset'));
-        syncSettings();
-      });
+    el.preset.addEventListener('change', function (ev) {
+      var i = +ev.target.value;
+      if (i < 0) { syncSettings(); return; }
+      draft = Settings.preset(i, I18N.get());
+      buildRanges();
+      syncSettings();
     });
     $('btnSetSave').addEventListener('click', function () {
       if (Settings.validate(draft).length) return;
@@ -3483,29 +3894,19 @@ var UI = (function () {
     });
   }
 
-  /** Konce rozsahu se nesmí prohodit (REQ-SET-017); posouvá ten druhý. */
-  function clampRanges(changed) {
-    if (changed === 'aMin' && draft.aMin > draft.aMax) draft.aMax = draft.aMin;
-    if (changed === 'aMax' && draft.aMax < draft.aMin) draft.aMin = draft.aMax;
-    if (changed === 'bMin' && draft.bMin > draft.bMax) draft.bMax = draft.bMin;
-    if (changed === 'bMax' && draft.bMax < draft.bMin) draft.bMin = draft.bMax;
-  }
-
-  function syncRange(which, lo, hi) {
-    $('set' + which + 'Min').value = lo;
-    $('set' + which + 'Max').value = hi;
-    $('num' + which + 'Min').value = lo;
-    $('num' + which + 'Max').value = hi;
-    var f = $('fill' + which);
-    f.style.left = (lo / 999 * 100) + '%';
-    f.style.width = ((hi - lo) / 999 * 100) + '%';
-    /* Leží-li úchyty na sobě, musí být navrchu ten, který má kam ustoupit. */
-    $('set' + which + 'Min').style.zIndex = lo > 999 - hi ? 3 : 2;
-  }
-
   function syncSettings() {
-    syncRange('A', draft.aMin, draft.aMax);
-    syncRange('B', draft.bMin, draft.bMax);
+    /* Ročník se neurčuje zapamatováním volby, ale porovnáním s nastavením:
+       jakmile hráč cokoli změní, spadne volba na „vlastní" sama, a když
+       se vrátí přesně na ročník, ukáže se zase on. */
+    if (el.preset) el.preset.value = String(Settings.matchGrade(draft, I18N.get()));
+    for (var ri = 0; ri < rangeRows.length; ri++) {
+      var row = rangeRows[ri], cur = row.get();
+      row.lo.value = cur.lo; row.hi.value = cur.hi;
+      row.nlo.value = cur.lo; row.nhi.value = cur.hi;
+      row.fill.style.left = (cur.lo / CONFIG.NUM_MAX * 100) + '%';
+      row.fill.style.width = ((cur.hi - cur.lo) / CONFIG.NUM_MAX * 100) + '%';
+      row.lo.style.zIndex = cur.lo > CONFIG.NUM_MAX - cur.hi ? 3 : 2;
+    }
     $('setNeg').checked = draft.allowNegative;
     $('setRareZero').checked = draft.rareZero;
     $('setTime').value = draft.taskTime;
@@ -3878,16 +4279,19 @@ var SelfTest = (function () {
       for (var r = 0; r < ranges.length; r++) {
         var s = Settings.defaults();
         s.ops = [ops[o]];
-        s.aMin = ranges[r].aMin; s.aMax = ranges[r].aMax;
-        s.bMin = ranges[r].bMin; s.bMax = ranges[r].bMax;
+        s.ranges[ops[o]] = {
+          aMin: ranges[r].aMin, aMax: ranges[r].aMax,
+          bMin: ranges[r].bMin, bMax: ranges[r].bMax
+        };
+        var rg = s.ranges[ops[o]];
         if (MathTasks.usableOps(s).length === 0) continue;
         var trng = RNG.create(1000 + o * 10 + r), last = null;
         for (i = 0; i < CONFIG.SELFTEST_TASKS; i++) {
           var t = MathTasks.generate(trng, s, last);
           if (!t) { failures.push('příklad ' + ops[o] + ' r' + r + ': null'); break; }
           var bad = null;
-          if (t.b < s.bMin || t.b > s.bMax) { if (!(t.op === '/' && t.b === 1 && s.bMin === 0)) bad = 'b mimo rozsah'; }
-          if (t.a < s.aMin || t.a > s.aMax) bad = 'a mimo rozsah';
+          if (t.b < rg.bMin || t.b > rg.bMax) { if (!(t.op === '/' && t.b === 1 && rg.bMin === 0)) bad = 'b mimo rozsah'; }
+          if (t.a < rg.aMin || t.a > rg.aMax) bad = 'a mimo rozsah';
           if (t.op === '/' && (t.b === 0 || t.a !== t.b * t.result)) bad = 'dělení';
           if (t.op === '/' && !Number.isInteger(t.result)) bad = 'necelý podíl';
           if (t.op === '-' && !s.allowNegative && t.result < 0) bad = 'záporný výsledek';
