@@ -144,7 +144,7 @@
   <div class="row"><label data-i18n="set.speed"></label>
     <input type="range" id="setSpeed" min="0" max="4"><span class="val" id="setSpeedVal"></span></div>
   <div class="row"><label data-i18n="set.carsStep"></label>
-    <input type="range" id="setCarsStep" min="1" max="30"><span class="val" id="setCarsStepVal"></span></div>
+    <input type="range" id="setCarsStep" min="1" max="10"><span class="val" id="setCarsStepVal"></span></div>
   <div class="row"><label data-i18n="set.cols"></label>
     <input type="range" id="setCols" min="14" max="18"><span class="val" id="setColsVal"></span></div>
   <div class="row"><label data-i18n="set.palette"></label><span id="setPalette"></span></div>
@@ -317,7 +317,7 @@ var CONFIG = (function () {
     MAX_ACTIVE_TRAINS: 5, PROTECT_EXTRA: 2 * U,
 
     LIVES_START: 5, LIVES_CAP: 5,
-    DELIVERIES_PER_LIFE: 3, DELIVERIES_PER_CAR: 10,
+    DELIVERIES_PER_LIFE: 3, DELIVERIES_PER_CAR: 3,
     CARS_STEP_MIN: 1, CARS_STEP_MAX: 30,
     /* Nejdelší souprava padne dvakrát častěji než samotná lokomotiva;
        mezilehlé délky leží rovnoměrně mezi tím. */
@@ -379,7 +379,7 @@ var CONFIG = (function () {
     PICK_RADIUS: 30, MIN_TARGET_PX: 44,
     SCENE_MARGIN: 0.5, PAD_X: 24, PAD_TOP: 56, PAD_BOTTOM: 24,
 
-    ANNOUNCE_SECONDS: 2.1, PULSE_COUNT: 3, PULSE_STRENGTH: 0.85, PULSE_GROW: 0.22,
+    ANNOUNCE_SECONDS: 3.0, PULSE_COUNT: 5, PULSE_STRENGTH: 0.85, PULSE_GROW: 0.05,
     SMOKE_INTERVAL: 0.3, SMOKE_LIFE: 3.4, SMOKE_MAX: 220,
     SMOKE_R0: 0.04, SMOKE_GROWTH: 3.4, SMOKE_RISE: 0.42, SMOKE_ALPHA: 0.38,
     /* Rozvržení lokomotivy v místních souřadnicích vozu: +x je směr jízdy,
